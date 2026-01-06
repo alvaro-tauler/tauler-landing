@@ -1,1404 +1,2260 @@
 import './index.css'
-import { useEffect, useRef, useState, createContext, useContext } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
-// Simple global language context
-type Language = 'en' | 'es'
-const LanguageContext = createContext<{ language: Language; setLanguage: (l: Language) => void } | null>(null)
-function useLanguage() {
-  const ctx = useContext(LanguageContext)
-  if (!ctx) return { language: 'en' as Language, setLanguage: () => {} }
-  return ctx
+import type { Easing } from 'framer-motion'
+import { motion, useScroll, useTransform, useSpring, AnimatePresence } from 'framer-motion'
+import Lenis from 'lenis'
+import { I18nProvider, useI18n, LanguageSwitch, LanguageSwitchMenu } from './i18n'
+
+// -----------------------------------------------------------------------------
+// Hooks & Utilities
+// -----------------------------------------------------------------------------
+
+function useSmoothScroll() {
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      orientation: 'vertical',
+      gestureOrientation: 'vertical',
+      smoothWheel: true,
+    })
+
+    function raf(time: number) {
+      lenis.raf(time)
+      requestAnimationFrame(raf)
+    }
+
+    requestAnimationFrame(raf)
+
+    return () => {
+      lenis.destroy()
+    }
+  }, [])
 }
 
-function Hero() {
-  const { language } = useLanguage()
-  const t = language === 'en'
-    ? { eyebrow: 'Tauler Group', titleA: "Building tomorrow's businesses ", titleB: 'today', sub: 'Tauler Group, the multidisciplinary AI company that builds the businesses that will define the future.', cta1: 'Explore capabilities', cta2: 'Partner with us' }
-    : { eyebrow: 'Tauler Group', titleA: 'Construyendo los negocios del mañana ', titleB: 'hoy', sub: 'Tauler Group, la compañía multidisciplinar de IA que construye los negocios que definirán el futuro.', cta1: 'Explorar capacidades', cta2: 'Colabora con nosotros' }
-  return (
-    <section className="relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(8,10,76,0.25),transparent_35%)]" />
-      <div className="container-edge py-28 md:py-36">
-        <div className="eyebrow">{t.eyebrow}</div>
-        <h1 className="heading-hero">
-          {t.titleA}<TrueUnderline>{t.titleB}</TrueUnderline>
-        </h1>
-        <p className="subheading-hero max-w-3xl">{t.sub}</p>
-        <div className="mt-10 flex gap-4">
-          <a href="#capabilities" className="btn-primary">{t.cta1}</a>
-          <a href="#contact" className="btn-ghost">{t.cta2}</a>
-        </div>
-      </div>
-    </section>
-  )
+// -----------------------------------------------------------------------------
+// Framer Motion Animation Variants
+// -----------------------------------------------------------------------------
+
+const easeOutExpo: Easing = [0.16, 1, 0.3, 1]
+
+const fadeInUp = {
+  hidden: { opacity: 0, y: 15, filter: 'blur(2px)' },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    filter: 'blur(0px)',
+    transition: {
+      duration: 0.6,
+      ease: easeOutExpo
+    }
+  }
 }
 
-function Thesis() {
-  const ref = useReveal()
-  const { language } = useLanguage()
-  const t = language === 'en'
-    ? {
-        eyebrow: 'The Future is Now',
-        title: 'A New Business Paradigm',
-        intro: 'Traditional business creation is linear and sequential: identify problem, build solution, find market. AI changes this process, allowing for innovation in all markets.',
-        ourThesis: 'Our Thesis',
-        thesisP1: "In an AI-redefined world, maximum value doesn't reside in a single company, but in a platform for creating and developing businesses and innovation. We identify waves, not niches.",
-        chips: ['Wave Detection', 'Platform Thinking', 'Exponential Growth'],
-        method: 'Our Method',
-        step1: 'Identify Emerging Waves',
-        step1d: 'Spot market disruptions before they become mainstream',
-        step2: 'Build Modular Ecosystems',
-        step2d: 'Create adaptable platforms that evolve with market changes',
-        step3: 'Scale Exponentially',
-        step3d: 'Leverage AI and network effects for rapid growth',
-        stat1: 'Faster Innovation',
-        stat2: 'Business Resilience',
-        stat3: 'Market Possibilities',
-      }
-    : {
-        eyebrow: 'El futuro es ahora',
-        title: 'Un nuevo paradigma de negocio',
-        intro: 'La creación tradicional de negocios es lineal y secuencial: identificar el problema, crear la solución y encontrar el mercado. La IA cambia este proceso, permitiendo la innovación en todos los mercados.',
-        ourThesis: 'Nuestra tesis',
-        thesisP1: 'En un mundo redefinido por la IA, el valor máximo no reside en una sola empresa, sino en una plataforma para crear y desarrollar negocios e innovación. Identificamos olas, no nichos.',
-        chips: ['Detección de olas', 'Pensamiento de plataforma', 'Crecimiento exponencial'],
-        method: 'Nuestro método',
-        step1: 'Identificar olas emergentes',
-        step1d: 'Detectar disrupciones antes de que sean masivas',
-        step2: 'Construir ecosistemas modulares',
-        step2d: 'Crear plataformas adaptables que evolucionen con el mercado',
-        step3: 'Escalar exponencialmente',
-        step3d: 'Aprovechar IA y efectos de red para crecer rápido',
-        stat1: 'Innovación más rápida',
-        stat2: 'Resiliencia empresarial',
-        stat3: 'Posibilidades de mercado',
-      }
-  return (
-    <section ref={ref} className="relative py-20 md:py-32 reveal" id="thesis">
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent_0%,rgba(8,10,76,0.15)_25%,rgba(8,10,76,0.08)_75%,transparent_100%)]" />
-      <div className="container-edge">
-        <div className="text-center mb-16">
-          <div className="eyebrow mb-4">{t.eyebrow}</div>
-          <h2 className="text-3xl md:text-5xl font-semibold mb-6">{t.title}</h2>
-          <p className="text-lg md:text-xl text-white/70 max-w-4xl mx-auto">{t.intro}</p>
-        </div>
-
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-          {/* Left side - Our Thesis */}
-          <div className="space-y-8">
-            <div className="flex items-center gap-4">
-              <div className="w-8 h-8 bg-[rgb(var(--color-accent))] rounded-full opacity-20"></div>
-              <h3 className="text-2xl md:text-3xl font-semibold">{t.ourThesis}</h3>
-            </div>
-            <p className="text-lg text-white/80 leading-relaxed">{t.thesisP1}</p>
-            {/* <div className="bg-gradient-to-r from-[rgb(var(--color-accent))]/10 to-transparent border-l-4 border-[rgb(var(--color-accent))] p-6 rounded-r-2xl">
-              <p className="text-white/90 font-medium italic">
-                "AI creates markets as fast as it destroys them."
-              </p>
-            </div> */}
-            <div className="flex flex-wrap gap-3">
-              {t.chips.map((c) => (
-                <span key={c} className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-sm text-white/70">{c}</span>
-              ))}
-            </div>
-          </div>
-
-          {/* Right side - Our Method */}
-          <div className="space-y-8">
-            <div className="flex items-center gap-4">
-              <div className="w-8 h-8 bg-[rgb(var(--color-accent-red))] rounded-full opacity-20"></div>
-              <h3 className="text-2xl md:text-3xl font-semibold">{t.method}</h3>
-            </div>
-            <p className="text-lg text-white/80 leading-relaxed">
-              {language === 'en'
-                ? 'We build ecosystems. Tauler Group is a constant innovation laboratory—a network of capital, talent, and technology that enables businesses to be born and scale at exponential speed.'
-                : 'Construimos ecosistemas. Tauler Group es un laboratorio de innovación constante: una red de capital, talento y tecnología que permite que los negocios nazcan y escalen a velocidad exponencial.'}
-            </p>
-            
-            {/* Process steps */}
-            <div className="space-y-4">
-              <div className="flex items-start gap-4">
-                <div className="w-8 h-8 bg-[rgb(var(--color-accent))] rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0">1</div>
-                <div>
-                  <h4 className="font-semibold text-white">{t.step1}</h4>
-                  <p className="text-white/70 text-sm">{t.step1d}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <div className="w-8 h-8 bg-[rgb(var(--color-accent))] rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0">2</div>
-                <div>
-                  <h4 className="font-semibold text-white">{t.step2}</h4>
-                  <p className="text-white/70 text-sm">{t.step2d}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <div className="w-8 h-8 bg-[rgb(var(--color-accent))] rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0">3</div>
-                <div>
-                  <h4 className="font-semibold text-white">{t.step3}</h4>
-                  <p className="text-white/70 text-sm">{t.step3d}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom stats section */}
-        <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="text-center p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur">
-            <div className="text-3xl md:text-4xl font-bold text-[rgb(var(--color-accent))] mb-2">10x</div>
-            <div className="text-sm text-white/60 uppercase tracking-widest">{t.stat1}</div>
-          </div>
-          <div className="text-center p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur">
-            <div className="text-3xl md:text-4xl font-bold text-[rgb(var(--color-accent-red))] mb-2">85%</div>
-            <div className="text-sm text-white/60 uppercase tracking-widest">{t.stat2}</div>
-          </div>
-          <div className="text-center p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur">
-            <div className="text-3xl md:text-4xl font-bold text-[rgb(var(--color-accent))] mb-2">∞</div>
-            <div className="text-sm text-white/60 uppercase tracking-widest">{t.stat3}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Decorative elements removed for a more sober look */}
-    </section>
-  )
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.15,
+      delayChildren: 0.1
+    }
+  }
 }
 
-type Slide = {
-  title: string
-  intro: string
-  bullets: string[]
-  cta: string
+const staggerItem = {
+  hidden: { opacity: 0, y: 30, scale: 0.95 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    scale: 1,
+    transition: {
+      duration: 0.7,
+      ease: easeOutExpo
+    }
+  }
 }
 
-const slidesEn: Slide[] = [
-  {
-    title: 'Business Incubation',
-    intro:
-      'We create and incubate AI-native businesses before market demand fully emerges, positioning them for explosive, exponential growth in uncharted territories.',
-    bullets: [
-      'Prototype modular ventures using agentic AI to simulate and validate ideas at lightning speed.',
-      'Turn volatility into velocity: Launch in waves of innovation, not rigid niches.',
-      'Proven ROI: Early-stage scaling that delivers 3-5x returns in AI-disrupted markets.',
-    ],
-    cta: 'Learn More',
-  },
-  {
-    title: 'Strategic AI Consulting',
-    intro:
-      "Our deep expertise guides enterprises through AI transformations, uncovering hidden opportunities and crafting roadmaps that redefine competitive edges.",
-    bullets: [
-      'Multimodal AI analysis to integrate data from diverse sources for holistic strategy.',
-      'Identify untapped markets in high-stakes sectors.',
-      'Bottom-line impact: Drive 20-30% efficiency gains, per 2025 benchmarks.',
-    ],
-    cta: 'Schedule Consultation',
-  },
-  {
-    title: 'Capital & Growth',
-    intro:
-      "We deploy fiduciary capital, elite resources, and hands-on operational know-how to supercharge businesses at the blistering pace of AI evolution.",
-    bullets: [
-      'Seed to Series A funding with built-in antifragile safeguards against market shocks.',
-      'Access global networks for talent and partnerships that accelerate hyper-growth.',
-      'Scale sustainably: From MVP to market leader, with exits engineered for maximum value.',
-    ],
-    cta: 'Explore Funding',
-  },
-  {
-    title: 'Agentic AI Orchestration',
-    intro:
-      'Harness agentic AI to orchestrate complex ecosystems, where intelligent agents autonomously construct, adapt, and optimize operations in real-time.',
-    bullets: [
-      'Deploy small language models (SLMs) for sector-specific automation, reducing coordination costs by up to 40%.',
-      'Multimodal AI systems for real-time decision-making, problem solving, and optimization.',
-      'Empower teams: Boost productivity by 92% through AI-driven innovation, without the tech overhead.',
-    ],
-    cta: 'Demo Orchestration',
-  },
-  {
-    title: 'Antifragile Risk Management',
-    intro:
-      'Transform uncertainty into your greatest asset with antifragile architectures that not only withstand shocks but grow stronger from them.',
-    bullets: [
-      'Simulate black-swan scenarios using advanced AI to fortify supply chains and compliance in regulated industries.',
-      'Proactive pivots: Dismantle and rebuild modular units faster than competitors, ensuring 85% business model resilience.',
-      'Investor appeal: Minimize downside while maximizing upside in a $4.4T AI productivity boom.',
-    ],
-    cta: 'Assess Your Risks',
-  },
-  {
-    title: 'Sector-Specific Innovation Labs',
-    intro:
-      'Dive into breakthrough innovations for mission-critical sectors like nuclear, aviation, and maritime, where we construct bespoke AI solutions that redefine standards.',
-    bullets: [
-      'Custom digital twins and federated learning for privacy-secure advancements in energy and defense.',
-      'Tangible results: Cut emissions by 50% in aviation or downtime by 30% in nuclear ops via predictive ecosystems.',
-      'Visionary edge: Partner with us to pioneer markets AI creates overnight.',
-    ],
-    cta: 'Join the Lab',
-  },
-]
+// -----------------------------------------------------------------------------
+// Premium Components: Scroll Progress & Animated Background
+// -----------------------------------------------------------------------------
 
-const slidesEs: Slide[] = [
-  {
-    title: 'Incubación de negocios',
-    intro:
-      'Creamos e incubamos negocios nativos de IA antes de que exista la demanda, posicionándolos para un crecimiento exponencial en territorios inexplorados.',
-    bullets: [
-      'Prototipa negocios modulares con IA agentica para simular y validar ideas a gran velocidad.',
-      'Convierte la volatilidad en velocidad: lanza en olas de innovación, no en nichos rígidos.',
-      'ROI probado: escalado temprano que entrega retornos de 3–5x en mercados impactados por IA.',
-    ],
-    cta: 'Saber más',
-  },
-  {
-    title: 'Consultoría estratégica en IA',
-    intro:
-      'Nuestra experiencia guía transformaciones en IA, descubriendo oportunidades ocultas y diseñando roadmaps que redefinen la ventaja competitiva.',
-    bullets: [
-      'Análisis de IA multimodal para integrar datos diversos en una estrategia holística.',
-      'Identifica mercados inexplorados en sectores de alta exigencia.',
-      'Impacto real: impulsa eficiencias del 20–30% según benchmarks 2025.',
-    ],
-    cta: 'Agendar consulta',
-  },
-  {
-    title: 'Capital y crecimiento',
-    intro:
-      'Desplegamos capital fiduciario, recursos élite y know-how operativo para acelerar negocios al ritmo de la evolución de la IA.',
-    bullets: [
-      'Financiación desde semilla a Serie A con protecciones antifrágiles ante shocks.',
-      'Acceso a redes globales de talento y partnerships para hipercrecimiento.',
-      'Escala sostenible: del MVP al líder del mercado, con exits de máximo valor.',
-    ],
-    cta: 'Explorar financiación',
-  },
-  {
-    title: 'Orquestación con IA agentica',
-    intro:
-      'Orquesta ecosistemas complejos con IA agentica, donde agentes inteligentes construyen, se adaptan y optimizan en tiempo real.',
-    bullets: [
-      'Despliega SLMs para automatización sectorial y reduce costes de coordinación hasta un 40%.',
-      'Sistemas de IA multimodal para decisiones en tiempo real, resolución de problemas y optimización.',
-      'Potencia equipos: +92% de productividad sin sobrecarga técnica.',
-    ],
-    cta: 'Ver demostración',
-  },
-  {
-    title: 'Gestión de riesgo antifrágil',
-    intro:
-      'Convierte la incertidumbre en tu mayor activo con arquitecturas antifrágiles que resisten y se fortalecen ante shocks.',
-    bullets: [
-      'Simula cisnes negros con IA avanzada para reforzar cadenas de suministro y cumplimiento.',
-      'Giros proactivos: desmantela y recompone unidades modulares más rápido que la competencia (85% de resiliencia).',
-      'Atractivo para inversores: minimiza riesgo y maximiza upside en el boom de productividad de la IA (4,4T$).',
-    ],
-    cta: 'Evaluar riesgos',
-  },
-  {
-    title: 'Labs de innovación sectorial',
-    intro:
-      'Impulsa innovaciones para sectores críticos como nuclear, aviación y marítimo, con soluciones a medida que redefinen estándares.',
-    bullets: [
-      'Gemelos digitales y aprendizaje federado para avances con privacidad en energía y defensa.',
-      'Resultados tangibles: -50% emisiones en aviación o -30% downtime en nuclear con ecosistemas predictivos.',
-      'Ventaja visionaria: anticípate a mercados que la IA crea de la noche a la mañana.',
-    ],
-    cta: 'Unirte al Lab',
-  },
-]
-
-function Capabilities() {
-  const ref = useReveal()
-  const { language } = useLanguage()
-  const trackRef = useRef<HTMLDivElement | null>(null)
-  const [active, setActive] = useState(0)
-  const [isDragging, setIsDragging] = useState(false)
-  const [startX, setStartX] = useState(0)
-  const [scrollStart, setScrollStart] = useState(0)
-
-  // Create infinite scroll by duplicating slides of the current language
-  const slides = language === 'en' ? slidesEn : slidesEs
-  const infiniteSlides = [...slides, ...slides, ...slides]
-  const realActiveIndex = active % slides.length
+function ScrollProgress() {
+  const [progress, setProgress] = useState(0)
 
   useEffect(() => {
-    const el = trackRef.current
-    if (!el) return
-
-    const onScroll = () => {
-      const center = el.scrollLeft + el.clientWidth / 2
-      const wrapper = el.firstElementChild as HTMLElement | null
-      const items = wrapper ? (Array.from(wrapper.children) as HTMLElement[]) : []
-      let bestIdx = 0
-      let bestDist = Infinity
-      items.forEach((node, i) => {
-        const boxCenter = node.offsetLeft + node.offsetWidth / 2
-        const d = Math.abs(boxCenter - center)
-        if (d < bestDist) {
-          bestDist = d
-          bestIdx = i
-        }
-      })
-      setActive(bestIdx)
+    const updateProgress = () => {
+      const scrollHeight = document.documentElement.scrollHeight - window.innerHeight
+      const scrolled = (window.scrollY / scrollHeight) * 100
+      setProgress(scrolled)
     }
-    onScroll()
-    el.addEventListener('scroll', onScroll, { passive: true })
-    return () => el.removeEventListener('scroll', onScroll)
+
+    window.addEventListener('scroll', updateProgress, { passive: true })
+    return () => window.removeEventListener('scroll', updateProgress)
   }, [])
 
-  // Handle infinite scroll reset
-  useEffect(() => {
-    const el = trackRef.current
-    if (!el) return
-    
-    const wrapper = el.firstElementChild as HTMLElement | null
-    if (!wrapper) return
-
-    const handleScrollEnd = () => {
-      const slideWidth = wrapper.children[0]?.clientWidth || 0
-      const gap = 24 // gap-6 = 1.5rem = 24px
-      const totalSlideWidth = slideWidth + gap
-      
-      // If we're in the first set of slides, jump to the middle set
-      if (active < slides.length) {
-        el.scrollTo({ 
-          left: el.scrollLeft + (slides.length * totalSlideWidth), 
-          behavior: 'instant' 
-        })
-      }
-      // If we're in the last set of slides, jump to the middle set
-      else if (active >= slides.length * 2) {
-        el.scrollTo({ 
-          left: el.scrollLeft - (slides.length * totalSlideWidth), 
-          behavior: 'instant' 
-        })
-      }
-    }
-
-    const timeoutId = setTimeout(handleScrollEnd, 100)
-    return () => clearTimeout(timeoutId)
-  }, [active])
-
-  // autoplay every 4s (only when not dragging)
-  useEffect(() => {
-    if (isDragging) return
-    
-    const el = trackRef.current
-    if (!el) return
-    
-    const timer = setInterval(() => {
-      const nextIndex = (active + 1) % infiniteSlides.length
-      const wrapper = el.firstElementChild as HTMLElement | null
-      const child = wrapper?.children[nextIndex] as HTMLElement | undefined
-      if (child) {
-        el.scrollTo({ left: child.offsetLeft - (el.clientWidth - child.offsetWidth) / 2, behavior: 'smooth' })
-      }
-    }, 6000)
-    return () => clearInterval(timer)
-  }, [active, isDragging])
-
-  const scrollToIndex = (i: number) => {
-    const el = trackRef.current
-    if (!el) return
-    const wrapper = el.firstElementChild as HTMLElement | null
-    const child = wrapper?.children[i] as HTMLElement | undefined
-    if (child) el.scrollTo({ left: child.offsetLeft - (el.clientWidth - child.offsetWidth) / 2, behavior: 'smooth' })
-  }
-
-  // Initialize scroll position to middle set and reset on language change
-  useEffect(() => {
-    const el = trackRef.current
-    if (!el) return
-    const wrapper = el.firstElementChild as HTMLElement | null
-    const middleStart = wrapper?.children[slides.length] as HTMLElement | undefined
-    if (middleStart) {
-      el.scrollTo({ left: middleStart.offsetLeft - (el.clientWidth - middleStart.offsetWidth) / 2 })
-      setActive(slides.length)
-    }
-  }, [language])
-
-  // Drag handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true)
-    setStartX(e.pageX)
-    setScrollStart(trackRef.current?.scrollLeft || 0)
-  }
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || !trackRef.current) return
-    e.preventDefault()
-    const x = e.pageX
-    const walk = (x - startX) * 2
-    trackRef.current.scrollLeft = scrollStart - walk
-  }
-
-  const handleMouseUp = () => {
-    setIsDragging(false)
-  }
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setIsDragging(true)
-    setStartX(e.touches[0].pageX)
-    setScrollStart(trackRef.current?.scrollLeft || 0)
-  }
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging || !trackRef.current) return
-    const x = e.touches[0].pageX
-    const walk = (x - startX) * 2
-    trackRef.current.scrollLeft = scrollStart - walk
-  }
-
-  const handleTouchEnd = () => {
-    setIsDragging(false)
-  }
-
   return (
-    <section ref={ref} className="relative py-20 md:py-28 reveal" id="capabilities">
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent_0%,rgba(8,10,76,0.12)_30%,rgba(8,10,76,0.08)_70%,transparent_100%)]" />
-      <div className="container-edge">
-        <h2 className="text-2xl md:text-4xl font-semibold">{language === 'en' ? 'Our Capabilities' : 'Nuestras capacidades'}</h2>
-        <p className="mt-4 text-white/70 max-w-3xl">
-          {language === 'en'
-            ? 'We are advisors, investors, and builders. Our strategic business and tech experience allows us to not only invest, but also develop and operate companies from conception, and help others grow.'
-            : 'Somos asesores, inversores y constructores. Nuestra experiencia estratégica en negocio y tecnología nos permite no solo invertir, sino también desarrollar y operar compañías desde su concepción y ayudar a otras a crecer.'}
-        </p>
-        <div className="relative mt-10">
-          <button 
-            aria-label="Previous" 
-            onClick={() => scrollToIndex((active - 1 + infiniteSlides.length) % infiniteSlides.length)} 
-            className="absolute -left-2 md:-left-6 top-1/2 -translate-y-1/2 z-10 btn-ghost px-3 py-2"
-          >
-            ‹
-          </button>
-          <div 
-            ref={trackRef} 
-            className="overflow-x-auto overflow-y-visible scroll-smooth snap-x snap-mandatory px-8 md:px-12 py-4 cursor-grab active:cursor-grabbing" 
-            style={{scrollbarWidth:'none'} as any}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-          >
-            <div className="flex gap-6 min-w-max">
-              {infiniteSlides.map((s, i) => (
-                <div key={`${s.title}-${i}`} className="w-[320px] md:w-[420px] shrink-0 snap-center">
-                  <article
-                    aria-current={i === active ? 'true' : undefined}
-                    className={`rounded-2xl border p-6 backdrop-blur transition
-                      duration-300 ease-out will-change-transform h-full flex flex-col
-                      ${i === active ? 'scale-[1.04] border-white/30 bg-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.35)]' : 'scale-100 border-white/10 bg-white/5'}`}
-                  >
-                    <div className="text-sm uppercase tracking-widest text-white/60">Capability</div>
-                    <h3 className="mt-2 text-xl md:text-2xl font-semibold">{s.title}</h3>
-                    <p className="mt-3 text-white/70 flex-grow">{s.intro}</p>
-                    <ul className="mt-4 list-disc pl-5 space-y-2 text-white/70">
-                      {s.bullets.map((b) => (
-                        <li key={b}>{b}</li>
-                      ))}
-                    </ul>
-                    <a className="mt-5 edge-button" href="#contact">{s.cta}</a>
-                  </article>
-                </div>
-              ))}
-            </div>
-          </div>
-          <button 
-            aria-label="Next" 
-            onClick={() => scrollToIndex((active + 1) % infiniteSlides.length)} 
-            className="absolute -right-2 md:-right-6 top-1/2 -translate-y-1/2 z-10 btn-primary px-3 py-2"
-          >
-            ›
-          </button>
-        </div>
-        <div className="mt-4 flex items-center justify-center gap-2">
-          {slides.map((_, i) => (
-            <button 
-              key={i} 
-              aria-label={`Go to slide ${i+1}`} 
-              onClick={() => scrollToIndex(i + slides.length)} 
-              className={`h-1.5 w-4 rounded-full transition ${i===realActiveIndex?'bg-white':'bg-white/30 hover:bg-white/50'}`} 
-            />
-          ))}
-        </div>
-        <div className="mt-4 text-xs text-white/50">{language === 'en' ? 'Swipe or drag to explore how we turn AI potential into profitable realities.' : 'Desliza o arrastra para explorar cómo convertimos el potencial de la IA en realidades rentables.'}</div>
-      </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-    </section>
+    <div 
+      className="scroll-progress"
+      style={{ transform: `scaleX(${progress / 100})` }}
+    />
   )
 }
 
-function Partnerships() {
-  const ref = useReveal()
-  const { language } = useLanguage()
-  const [hoveredCard, setHoveredCard] = useState<number | null>(null)
+// Palantir-style Dynamic Background with Data Streams
+function DynamicBackground() {
+  const { scrollY } = useScroll()
+  const y1 = useTransform(scrollY, [0, 1000], [0, -200])
 
-  const partnershipModels = [
-    {
-      id: 1,
-      title: "Strategic Advisory",
-      subtitle: "AI Transformation",
-      description: "For established businesses seeking AI transformation",
-      icon: "",
-      features: [
-        "AI strategy development",
-        "Market opportunity analysis", 
-        "Transformation roadmap",
-        "Risk assessment & mitigation"
-      ],
-      color: "from-[rgb(var(--color-accent))]/20 to-[rgb(var(--color-accent))]/5",
-      borderColor: "border-[rgb(var(--color-accent))]/30",
-      bgColor: "bg-[rgb(var(--color-accent))]/10"
+  return (
+    <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
+      {/* Animated Grid Lines */}
+      <motion.div
+        className="absolute inset-0 opacity-[0.07]"
+        style={{
+          backgroundImage: 'linear-gradient(rgba(232,21,28,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(232,21,28,0.4) 1px, transparent 1px)',
+          backgroundSize: '80px 80px',
+          y: y1
+        }}
+      />
+
+      {/* Diagonal flowing lines representing data streams */}
+      <svg className="absolute inset-0 w-full h-full opacity-20" viewBox="0 0 1000 1000" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="dataStreamGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="transparent" />
+            <stop offset="50%" stopColor="rgba(232,21,28,0.5)" />
+            <stop offset="100%" stopColor="transparent" />
+          </linearGradient>
+        </defs>
+
+        {[...Array(5)].map((_, i) => (
+          <g key={i}>
+            <motion.line
+              x1={i * 200} y1="0" x2={i * 200 + 500} y2="1000"
+              stroke="url(#dataStreamGradient)"
+              strokeWidth="1"
+              strokeDasharray="20 40"
+              initial={{ strokeDashoffset: 0 }}
+              animate={{ strokeDashoffset: -600 }}
+              transition={{ duration: 10 + i * 2, repeat: Infinity, ease: "linear" }}
+            />
+            {/* Data packets moving along the lines */}
+            <circle r="2" fill="rgb(232,21,28)">
+              <animateMotion
+                dur={`${8 + i}s`}
+                repeatCount="indefinite"
+                path={`M ${i * 200},0 L ${i * 200 + 500},1000`}
+              />
+              <animate
+                attributeName="opacity"
+                values="0;1;0"
+                dur={`${8 + i}s`}
+                repeatCount="indefinite"
+              />
+            </circle>
+          </g>
+        ))}
+      </svg>
+
+      {/* Floating data nodes instead of simple dots */}
+      {[...Array(8)].map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute flex items-center justify-center"
+          style={{
+            left: `${(i * 15 + 10) % 90}%`,
+            top: `${(i * 25 + 5) % 90}%`,
+          }}
+          animate={{
+            y: [-10, 10, -10],
+            opacity: [0.1, 0.3, 0.1],
+          }}
+          transition={{
+            duration: 5 + i,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: i * 0.5
+          }}
+        >
+          <div className="w-1.5 h-1.5 bg-[rgb(var(--color-accent-red))] rounded-full relative">
+            <div className="absolute inset-[-4px] border border-[rgb(var(--color-accent-red))]/20 rounded-full animate-ping" />
+          </div>
+          {/* Connecting lines suggesting network */}
+          <svg className="absolute top-1/2 left-1/2 w-32 h-32 -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-20 overflow-visible">
+             <line x1="16" y1="16" x2="100" y2="50" stroke="rgb(232,21,28)" strokeWidth="0.5" strokeDasharray="2 2" />
+          </svg>
+        </motion.div>
+      ))}
+
+      {/* Corner tech elements removed */}
+    </div>
+  )
+}
+
+// -----------------------------------------------------------------------------
+// Components
+// -----------------------------------------------------------------------------
+
+function Hero() {
+  const { t } = useI18n()
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
+  const { scrollY } = useScroll()
+  
+  // Smooth parallax with spring animation
+  const springConfig = { stiffness: 100, damping: 30, mass: 1 }
+  const mouseX = useSpring(mousePos.x, springConfig)
+  const mouseY = useSpring(mousePos.y, springConfig)
+  
+  // Scroll-based parallax
+  const y = useTransform(scrollY, [0, 500], [0, 150])
+  const scale = useTransform(scrollY, [0, 300], [1, 0.95])
+  const borderRadius = useTransform(scrollY, [0, 300], [0, 24])
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    const x = (e.clientX / window.innerWidth - 0.5) * 20
+    const y = (e.clientY / window.innerHeight - 0.5) * 20
+    setMousePos({ x, y })
+  }
+
+  return (
+    <motion.section 
+      className="relative min-h-screen flex items-center justify-center overflow-hidden pt-40 pb-32 md:pt-60 md:pb-48 origin-top"
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => setMousePos({ x: 0, y: 0 })}
+      style={{ y, scale, borderRadius, backgroundColor: 'rgb(var(--color-bg))' }}
+    >
+      <div className="absolute inset-0 z-0">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover opacity-50"
+        >
+          <source src="/videocorto1%20ok.webm" type="video/webm" />
+        </video>
+        <div className="absolute inset-0 bg-gradient-to-b from-[rgb(var(--color-bg))] via-[rgb(var(--color-bg))]/40 to-[rgb(var(--color-bg))]" />
+      </div>
+
+      <div className="absolute inset-0 pointer-events-none overflow-hidden z-10">
+        {/* Animated Orbs */}
+        <motion.div 
+          className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] rounded-full blur-[120px] bg-[rgb(var(--color-accent))]/10"
+          style={{ x: mouseX, y: mouseY }}
+        />
+        <motion.div 
+          className="absolute bottom-[-20%] right-[-10%] w-[50vw] h-[50vw] rounded-full blur-[100px] bg-[rgb(var(--color-accent-red))]/5"
+          style={{ x: useSpring(useTransform(mouseX, x => x * -1), springConfig), y: useSpring(useTransform(mouseY, y => y * -1), springConfig) }}
+        />
+      </div>
+
+      <div className="container-edge text-center z-10 relative px-6 md:px-12">
+        
+        <h1 className="heading-hero max-w-6xl mx-auto mb-12 relative">
+          {/* Subtle red glare behind text */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[150%] bg-[rgb(var(--color-accent-red))] blur-[90px] opacity-[0.15] -z-10 pointer-events-none" />
+
+          {/* Primera línea */}
+          <motion.span
+            className="block will-change-[transform,opacity]"
+            style={{ 
+              background: 'linear-gradient(180deg, rgb(var(--color-ink)) 0%, rgba(10, 25, 47, 0.7) 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}
+            initial={{ 
+              opacity: 0, 
+              y: -25,
+              scale: 0.95
+            }}
+            animate={{ 
+              opacity: 1, 
+              y: 0,
+              scale: 1
+            }}
+            transition={{ 
+              duration: 1.1, 
+              delay: 0.2,
+              ease: [0.22, 1, 0.36, 1]
+            }}
+          >
+            {t('hero.line1')}
+          </motion.span>
+
+          {/* Segunda línea */}
+          <motion.span
+            className="text-[0.8em] block mt-2 relative will-change-[transform,opacity]"
+            style={{ 
+              background: 'linear-gradient(180deg, rgba(10, 25, 47, 0.65) 0%, rgba(10, 25, 47, 0.55) 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}
+            initial={{ 
+              opacity: 0, 
+              y: 15,
+              scale: 0.95
+            }}
+            animate={{ 
+              opacity: 1, 
+              y: 0,
+              scale: 1
+            }}
+            transition={{ 
+              duration: 1.0, 
+              delay: 0.7,
+              ease: [0.22, 1, 0.36, 1]
+            }}
+          >
+            {t('hero.line2')}
+          </motion.span>
+        </h1>
+
+        <motion.p 
+          className="subheading-hero max-w-3xl mx-auto mb-16"
+            initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 1.2, ease: easeOutExpo }}
+        >
+          {t('hero.subtitle')}
+        </motion.p>
+
+        <motion.div 
+          className="flex flex-col sm:flex-row gap-6 justify-center"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 1.4, ease: easeOutExpo }}
+        >
+          <a href="#units" className="btn-primary group">
+            <span>{t('hero.cta')}</span>
+            <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+          </a>
+          <a href="#contact" className="btn-ghost">
+            {t('hero.ctaSecondary')}
+          </a>
+        </motion.div>
+      </div>
+    </motion.section>
+  )
+}
+
+function Manifesto() {
+  const { t } = useI18n()
+  return (
+    <motion.section
+      className="relative py-20 md:py-32 lg:py-48 border-t border-[rgb(var(--color-ink))]/5 overflow-hidden"
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: "-100px" }}
+      variants={fadeInUp}
+    >
+      <div className="absolute left-0 top-32 w-px h-32 bg-gradient-to-b from-transparent via-[rgb(var(--color-accent-red))] to-transparent opacity-20 hidden md:block"></div>
+      
+      {/* Background Grid Accent - Hidden on mobile */}
+      <div className="absolute right-0 top-0 w-1/3 h-full opacity-[0.03] pointer-events-none overflow-hidden hidden lg:block">
+        <svg width="100%" height="100%">
+          <defs>
+            <pattern id="grid-manifesto" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="1"/>
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#grid-manifesto)" />
+        </svg>
+      </div>
+      
+      <div className="container-edge w-full">
+        {/* Asymmetric 40-60 grid - Apple style */}
+        <div className="grid lg:grid-cols-12 gap-12 md:gap-16 lg:gap-20 items-start lg:items-center w-full">
+           <div className="lg:col-span-5 w-full">
+              <div className="eyebrow">{t('manifesto.eyebrow')}</div>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-[rgb(var(--color-ink))] mb-6 md:mb-8" style={{ letterSpacing: '-0.02em', lineHeight: '1.1' }}>
+                {t('manifesto.title')}
+              </h2>
+           </div>
+           <div className="lg:col-span-7 space-y-6 md:space-y-10 text-lg sm:text-xl lg:text-2xl text-[rgb(var(--color-ink))]/90 font-light leading-[1.6] w-full pr-0">
+              <p className="break-words">
+                {t('manifesto.paragraph1')} <strong className="text-[rgb(var(--color-ink))] font-semibold">{t('manifesto.transformation')}</strong>{t('manifesto.paragraph1End')}
+              </p>
+              <div className="pl-6 md:pl-8 border-l-[3px] border-[rgb(var(--color-accent-red))] relative">
+                 <div className="absolute -left-[7px] top-0 w-3 h-3 rounded-full bg-[rgb(var(--color-accent-red))] animate-pulse-dot" />
+                 <p className="text-xl sm:text-2xl lg:text-3xl text-[rgb(var(--color-ink))] italic font-light break-words" style={{ lineHeight: '1.4' }}>
+                   {t('manifesto.quote')}
+                 </p>
+              </div>
+           </div>
+        </div>
+      </div>
+    </motion.section>
+  )
+}
+
+// Palantir-style process flow visualization for Consulting
+function ConsultingFlowViz() {
+  const stages = ['DIAG', 'ARQ', 'DEV', 'OPS', 'ESC']
+  return (
+    <div className="relative h-28 mb-8 overflow-hidden rounded-sm border border-[rgb(var(--color-ink))]/10 bg-[rgb(var(--color-ink))]/[0.02]">
+      {/* Background grid */}
+      <div className="absolute inset-0 opacity-[0.05]" 
+           style={{ backgroundImage: 'linear-gradient(rgba(10,25,47,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(10,25,47,0.5) 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+      
+      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 100" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="flowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="transparent" />
+            <stop offset="50%" stopColor="rgb(232,21,28)" />
+            <stop offset="100%" stopColor="transparent" />
+          </linearGradient>
+        </defs>
+        <path d="M 0,50 L 400,50" stroke="rgba(232,21,28,0.2)" strokeWidth="1" fill="none" />
+        <path d="M 0,50 L 400,50" stroke="url(#flowGradient)" strokeWidth="2" fill="none" strokeDasharray="8 12" className="animate-dash-flow" />
+      </svg>
+      <div className="relative h-full flex items-center justify-between px-6">
+        {stages.map((stage, i) => (
+          <div key={stage} className="flex flex-col items-center gap-3 animate-fade-in-up group/stage" style={{ animationDelay: `${i * 100}ms` }}>
+            <div className={`w-3 h-3 rounded-full relative flex items-center justify-center transition-all duration-500 ${
+              i === stages.length - 1
+                ? 'scale-125'
+                : 'group-hover/stage:scale-125'
+            }`}>
+              <div className={`absolute inset-0 rounded-full ${
+                i === stages.length - 1
+                  ? 'bg-[rgb(var(--color-accent-red))] animate-pulse-dot'
+                  : 'bg-[rgb(var(--color-ink))]/20 group-hover/stage:bg-[rgb(var(--color-accent-red))]/60'
+              }`} />
+              <div className={`absolute inset-[-4px] rounded-full border border-[rgb(var(--color-accent-red))] opacity-0 transition-opacity duration-500 ${
+                i === stages.length - 1 ? 'opacity-30' : 'group-hover/stage:opacity-30'
+              }`} />
+            </div>
+            <span className={`text-[9px] font-mono tracking-widest uppercase transition-colors duration-300 ${
+              i === stages.length - 1 ? 'text-[rgb(var(--color-accent-red))] font-bold' : 'text-[rgb(var(--color-ink))]/40 group-hover/stage:text-[rgb(var(--color-ink))]/80'
+            }`}>
+              {stage}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Palantir-style network visualization for Venture Building
+function VentureNetworkViz() {
+  return (
+    <div className="relative h-28 mb-8 overflow-hidden rounded-sm border border-[rgb(var(--color-ink))]/10 bg-[rgb(var(--color-ink))]/[0.02]">
+      {/* Background grid */}
+      <div className="absolute inset-0 opacity-[0.05]" 
+           style={{ backgroundImage: 'linear-gradient(rgba(10,25,47,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(10,25,47,0.5) 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+      
+      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 200 100">
+        {[
+          { x2: 40, y2: 25, delay: '0s' },
+          { x2: 160, y2: 25, delay: '0.5s' },
+          { x2: 40, y2: 75, delay: '1s' },
+          { x2: 160, y2: 75, delay: '1.5s' }
+        ].map((line, i) => (
+          <g key={i}>
+            <line
+              x1="100" y1="50" x2={line.x2} y2={line.y2}
+              stroke="rgba(232,21,28,0.2)"
+              strokeWidth="1"
+            />
+            <circle r="1" fill="rgb(232,21,28)">
+              <animateMotion
+                dur="3s"
+                repeatCount="indefinite"
+                path={`M 100,50 L ${line.x2},${line.y2}`}
+                begin={line.delay}
+              />
+              <animate
+                attributeName="opacity"
+                values="0;1;0"
+                dur="3s"
+                repeatCount="indefinite"
+                begin={line.delay}
+              />
+            </circle>
+          </g>
+        ))}
+      </svg>
+      <div className="relative h-full w-full">
+        {[
+          { top: '20%', left: '20%' },
+          { top: '20%', right: '20%' },
+          { bottom: '20%', left: '20%' },
+          { bottom: '20%', right: '20%' }
+        ].map((pos, i) => (
+          <div
+            key={i}
+            className="absolute w-2 h-2 rounded-full bg-[rgb(var(--color-ink))]/20 border border-[rgb(var(--color-ink))]/40 flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2"
+            style={pos}
+          >
+            <div className="absolute inset-[-4px] border border-[rgb(var(--color-ink))]/10 rounded-full animate-pulse-soft" style={{ animationDelay: `${i * 0.5}s` }} />
+          </div>
+        ))}
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+          <div className="relative">
+            <div className="w-8 h-8 rounded-full bg-[rgb(var(--color-accent-red))]/10 border border-[rgb(var(--color-accent-red))]/40 flex items-center justify-center backdrop-blur-sm">
+              <div className="w-2 h-2 rounded-full bg-[rgb(var(--color-accent-red))]"/>
+            </div>
+            <div className="absolute inset-[-4px] border border-[rgb(var(--color-accent-red))]/20 rounded-full animate-ping" style={{ animationDuration: '3s' }} />
+            <div className="absolute inset-[-8px] border border-[rgb(var(--color-accent-red))]/10 rounded-full" />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Units() {
+  const { t } = useI18n()
+  const [selectedCompany, setSelectedCompany] = useState<{
+    name: string;
+    description: string;
+    url: string;
+    logo: string;
+    alt: string;
+    className?: string;
+  } | null>(null)
+  
+  const companiesSectionRef = useRef<HTMLDivElement>(null)
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (selectedCompany) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [selectedCompany])
+
+  const companies = [
+    { 
+      name: "Gestiona Mogán", 
+      description: t('units.gestionaMoganDesc'), 
+      url: "https://www.gestmogan.com/",
+      logo: "/cropped-MOGAN-GESTIONA-MARCA-Y-COMUNICACION.png", 
+      alt: "Gestiona Mogán" 
     },
-    {
-      id: 2,
-      title: "Venture Partnership",
-      subtitle: "Co-Creation",
-      description: "Co-create and scale new AI-native businesses",
-      icon: "",
-      features: [
-        "Business concept development",
-        "Capital investment",
-        "Operational expertise",
-        "Network access",
-        "Go-to-market strategy"
-      ],
-      color: "from-[rgb(var(--color-accent-red))]/20 to-[rgb(var(--color-accent-red))]/5",
-      borderColor: "border-[rgb(var(--color-accent-red))]/30",
-      bgColor: "bg-[rgb(var(--color-accent-red))]/10"
+    { 
+      name: "Dormitorum", 
+      description: t('units.dormitorumDesc'), 
+      url: "https://dormitorum.es", 
+      logo: "/logo-dormitorum-aislado-1.png", 
+      alt: "Dormitorum" 
     },
-    {
-      id: 3,
-      title: "Development Lab",
-      subtitle: "End-to-End",
-      description: "For visionaries with breakthrough ideas",
-      icon: "",
-      features: [
-        "End-to-end business creation",
-        "Technology development",
-        "Market validation",
-        "Scale-up support",
-        "Exit strategy planning"
-      ],
-      color: "from-white/20 to-white/5",
-      borderColor: "border-white/30",
-      bgColor: "bg-white/10"
+    { 
+      name: "Transition Capital", 
+      description: t('units.transitionCapitalDesc'), 
+      url: "https://transitioncapital.es/",
+      logo: "/Logo-05.png", 
+      alt: "Transition Capital" 
+    },
+    { 
+      name: "Gesplan", 
+      description: t('units.gesplanDesc'), 
+      url: "https://www.gesplan.es", 
+      logo: "/Capa_1-2%20(1).png", 
+      alt: "Gesplan",
+      className: "brightness-0"
     }
   ]
 
   return (
-    <section ref={ref} className="relative py-20 md:py-32 reveal" id="partnerships">
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent_0%,rgba(8,10,76,0.12)_20%,rgba(8,10,76,0.14)_80%,transparent_100%)]" />
+    <motion.section
+      className="relative py-20 md:py-32 border-t border-[rgb(var(--color-ink))]/5 bg-gradient-to-b from-white/[0.02] to-transparent"
+      id="units"
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: "-100px" }}
+      variants={fadeInUp}
+    >
       <div className="container-edge">
-        <div className="text-center mb-16">
-          <div className="eyebrow mb-4">{language === 'en' ? 'Choose Your Path' : 'Elige tu camino'}</div>
-          <h2 className="text-3xl md:text-5xl font-semibold mb-6">
-            {language === 'en' ? (
-              <>Partnership <TrueUnderline>Models</TrueUnderline></>
-            ) : (
-              <>Modelos de <TrueUnderline>colaboración</TrueUnderline></>
-            )}
+        <div className="mb-20 max-w-4xl">
+          <div className="eyebrow">{t('units.eyebrow')}</div>
+          <h2 className="text-4xl md:text-6xl font-bold text-[rgb(var(--color-ink))]" style={{ letterSpacing: '-0.02em', lineHeight: '1.1' }}>
+            {t('units.title')} <span className="text-[rgb(var(--color-ink))]/40">{t('units.titleHighlight')}</span>
           </h2>
-          <p className="text-lg md:text-xl text-white/70 max-w-4xl mx-auto">
-            {language === 'en'
-              ? 'Choose how you want to engage with the future of business creation. Each partnership model is designed for different stages of your journey.'
-              : 'Elige cómo quieres participar en la creación del negocio del futuro. Cada modelo está diseñado para distintas etapas de tu recorrido.'}
-          </p>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8 mb-16">
-          {partnershipModels.map((model) => (
-            <div
-              key={model.id}
-              className={`group relative rounded-3xl border backdrop-blur transition-all duration-500 hover:scale-105 cursor-pointer
-                ${hoveredCard === model.id ? 'scale-105 shadow-2xl' : 'scale-100'}
-                ${model.borderColor} ${model.color} bg-gradient-to-br`}
-              onMouseEnter={() => setHoveredCard(model.id)}
-              onMouseLeave={() => setHoveredCard(null)}
-            >
-              {/* Card Header */}
-              <div className="p-8 pb-6">
-                <div className="flex items-center gap-4 mb-4">
-                  {model.icon && (
-                    <div className={`w-12 h-12 rounded-2xl ${model.bgColor} flex items-center justify-center text-2xl`}>
-                      {model.icon}
-                    </div>
-                  )}
-                  <div>
-                    <h3 className="text-xl font-semibold">{language === 'en' ? model.title : (
-                      model.id === 1 ? 'Asesoría estratégica' : model.id === 2 ? 'Colaboración de riesgo' : 'Laboratorio de desarrollo'
-                    )}</h3>
-                    <p className="text-sm text-white/60 uppercase tracking-widest">{language === 'en' ? model.subtitle : (
-                      model.id === 1 ? 'Transformación con IA' : model.id === 2 ? 'Cocreación' : 'Extremo a extremo'
-                    )}</p>
-                  </div>
-                </div>
-                <p className="text-white/80 leading-relaxed">{language === 'en' ? model.description : (
-                  model.id === 1 ? 'Para empresas establecidas que buscan una transformación con IA' :
-                  model.id === 2 ? 'Cocrear y escalar nuevos negocios nativos de IA' :
-                  'Para visionarios con ideas rompedoras'
-                )}</p>
-              </div>
-
-              {/* Features List */}
-              <div className="px-8 pb-6">
-                <ul className="space-y-3">
-                  {model.features.map((feature, featureIndex) => (
-                    <li key={featureIndex} className="flex items-center gap-3 text-white/70">
-                      <div className={`w-1.5 h-1.5 rounded-full ${model.bgColor} flex-shrink-0`}></div>
-                      <span className="text-sm">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* CTA Button */}
-              <div className="px-8 pb-8">
-                <a 
-                  href="#contact" 
-                  className={`inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-medium transition-all duration-300 group-hover:scale-105 btn-ghost`}
-                >
-                  {language === 'en' ? (model.id === 2 ? 'Start Partnership' : 'Learn More') : (model.id === 2 ? 'Iniciar colaboración' : 'Saber más')}
-                  <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </a>
-              </div>
-
-              {/* Hover Effect Overlay */}
-              <div className={`absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none
-                ${model.bgColor}`}></div>
+        <motion.div 
+          className="grid md:grid-cols-2 gap-10 lg:gap-14"
+          variants={staggerContainer}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-50px" }}
+        >
+          {/* Unit 1 - Consulting with Flow Visualization */}
+          <motion.div 
+            className="tech-card p-8 md:p-10 rounded-sm group flex flex-col h-full cursor-pointer"
+            variants={staggerItem}
+            whileHover={{ y: -8, transition: { duration: 0.3 } }}
+            onClick={() => window.open('https://consulting.taulergroup.com', '_blank')}
+          >
+            <div className="mb-8 shrink-0">
+               <h3 className="text-2xl md:text-3xl font-bold text-[rgb(var(--color-ink))] mb-4 uppercase" style={{ letterSpacing: '-0.01em' }}>{t('units.consultingTitle')}</h3>
+               <p className="text-base text-[rgb(var(--color-ink))]/90 leading-[1.7] font-light">
+                 {t('units.consultingDesc')}
+               </p>
             </div>
-          ))}
-        </div>
-
-        {/* Bottom CTA Section */}
-        {/* <div className="text-center">
-          <div className="max-w-3xl mx-auto">
-            <h3 className="text-2xl md:text-3xl font-semibold mb-4">
-              Ready to build the future of business?
-            </h3>
-            <p className="text-lg text-white/70 mb-8">
-              Join our network of innovators, entrepreneurs, and visionaries who are shaping tomorrow's markets today.
-            </p>
             
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <a 
-                href="mailto:hello@taulergroup.com" 
-                className="btn-primary text-lg px-8 py-4 hover:scale-105 transition-transform duration-200"
-              >
-                Start Your Partnership
-              </a>
-              <a 
-                href="#thesis" 
-                className="btn-ghost text-lg px-8 py-4 hover:scale-105 transition-transform duration-200"
-              >
-                Learn Our Approach
-              </a>
+            
+            <ul className="space-y-4 mb-8 flex-1">
+               {[
+                 t('units.consultingItem1'),
+                 t('units.consultingItem2'),
+                 t('units.consultingItem3'),
+                 t('units.consultingItem4')
+               ].map((item) => (
+                 <li key={item} className="flex items-start gap-3 text-sm text-[rgb(var(--color-ink))]/80 leading-[1.6] group/item">
+                   <span className="text-[rgb(var(--color-accent-red))] text-lg font-bold mt-0.5 transition-transform group-hover/item:translate-x-1">›</span>
+                   <span>{item}</span>
+                 </li>
+               ))}
+            </ul>
+            <div className="pt-6 border-t border-[rgb(var(--color-ink))]/10 flex items-center justify-between">
+               <p className="text-[rgb(var(--color-ink))] font-semibold text-sm">{t('units.consultingFooter')}</p>
+               <span className="text-[rgb(var(--color-accent-red))] text-sm font-bold uppercase tracking-widest border border-[rgb(var(--color-accent-red))]/20 px-4 py-2 rounded-sm hover:bg-[rgb(var(--color-accent-red))] hover:text-white transition-all duration-300">{t('units.learnMore')}</span>
             </div>
-          </div>
-        </div> */}
+          </motion.div>
+
+          {/* Unit 2 - Venture Building with Network Visualization */}
+          <motion.div 
+            className="tech-card p-8 md:p-10 rounded-sm group flex flex-col h-full cursor-pointer"
+            variants={staggerItem}
+            whileHover={{ y: -8, transition: { duration: 0.3 } }}
+            onClick={() => window.open('https://ventures.taulergroup.com', '_blank')}
+          >
+            <div className="mb-8 shrink-0">
+               <h3 className="text-2xl md:text-3xl font-bold text-[rgb(var(--color-ink))] mb-4 uppercase" style={{ letterSpacing: '-0.01em' }}>{t('units.ventureTitle')}</h3>
+               <p className="text-base text-[rgb(var(--color-ink))]/90 leading-[1.7] font-light">
+                 {t('units.ventureDesc')}
+               </p>
+            </div>
+            
+            
+            <ul className="space-y-4 mb-8 flex-1">
+               {[
+                 t('units.ventureItem1'),
+                 t('units.ventureItem2'),
+                 t('units.ventureItem3'),
+                 t('units.ventureItem4')
+               ].map((item) => (
+                 <li key={item} className="flex items-start gap-3 text-sm text-[rgb(var(--color-ink))]/80 leading-[1.6] group/item">
+                   <span className="text-[rgb(var(--color-accent-red))] text-lg font-bold mt-0.5 transition-transform group-hover/item:translate-x-1">›</span>
+                   <span>{item}</span>
+                 </li>
+               ))}
+            </ul>
+            <div className="pt-6 border-t border-[rgb(var(--color-ink))]/10 flex items-center justify-between">
+               <p className="text-[rgb(var(--color-ink))] font-semibold text-sm">{t('units.ventureFooter')}</p>
+               <span className="text-[rgb(var(--color-accent-red))] text-sm font-bold uppercase tracking-widest border border-[rgb(var(--color-accent-red))]/20 px-4 py-2 rounded-sm hover:bg-[rgb(var(--color-accent-red))] hover:text-white transition-all duration-300">{t('units.learnMore')}</span>
+            </div>
+          </motion.div>
+        </motion.div>
+
+        <motion.div 
+           ref={companiesSectionRef}
+           id="companies-section"
+           className="mt-24 pt-12 border-t border-[rgb(var(--color-ink))]/10"
+           initial={{ opacity: 0 }}
+           whileInView={{ opacity: 1 }}
+           viewport={{ once: true }}
+           transition={{ delay: 0.2, duration: 1 }}
+        >
+            <p className="text-center text-xs font-bold uppercase tracking-widest text-[rgb(var(--color-ink))]/40 mb-10">
+              {t('units.trustUs')}
+            </p>
+            <div className="flex flex-wrap justify-center items-center gap-12 md:gap-20">
+              {companies.map((company, i) => (
+                <img 
+                  key={i} 
+                  src={company.logo} 
+                  alt={company.alt} 
+                  onClick={() => setSelectedCompany(company)}
+                  className={`h-12 md:h-16 w-auto object-contain opacity-60 hover:opacity-100 grayscale hover:grayscale-0 transition-all duration-300 cursor-pointer ${company.className || ''}`} 
+                />
+              ))}
+            </div>
+        </motion.div>
+
+        <motion.div 
+           className="mt-16"
+           initial={{ opacity: 0 }}
+           whileInView={{ opacity: 1 }}
+           viewport={{ once: true }}
+           transition={{ delay: 0.3, duration: 1 }}
+        >
+            <p className="text-center text-xs font-bold uppercase tracking-widest text-[rgb(var(--color-ink))]/40 mb-10">
+              {t('units.weCreated')}
+            </p>
+            <div className="flex flex-wrap justify-center items-center gap-12 md:gap-20">
+              {[
+                { src: "/logo Columbus gris.png", alt: "Columbus", url: "https://columbus.taulergroup.com" },
+                { src: "/logo municipia color.png", alt: "Municipia", url: "https://municipia.es" }
+              ].map((logo, i) => (
+                <a 
+                  key={i}
+                  href={logo.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block"
+                >
+                  <img 
+                    src={logo.src} 
+                    alt={logo.alt} 
+                    className="h-12 md:h-16 w-auto object-contain opacity-60 hover:opacity-100 grayscale hover:grayscale-0 transition-all duration-300 cursor-pointer" 
+                  />
+                </a>
+              ))}
+            </div>
+        </motion.div>
+
       </div>
 
-      {/* Decorative elements removed for a more sober look */}
-    </section>
+      {/* Modal rendered via Portal to document.body */}
+      {typeof window !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {selectedCompany && (
+            <>
+              {/* Full-page backdrop blur */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setSelectedCompany(null)}
+                className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-[9998]"
+              />
+              {/* Modal content centered on screen */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[9999] bg-[rgb(var(--color-bg))] border border-[rgb(var(--color-ink))]/10 rounded-lg shadow-2xl overflow-hidden p-8 w-[90%] sm:w-[480px]"
+              >
+                <button 
+                  onClick={() => setSelectedCompany(null)}
+                  className="absolute top-4 right-4 text-[rgb(var(--color-ink))]/40 hover:text-[rgb(var(--color-ink))] transition-colors z-20"
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                </button>
+                
+                <div className="flex flex-col items-center text-center">
+                  <div className="h-20 flex items-center justify-center mb-6">
+                    <img 
+                      src={selectedCompany.logo} 
+                      alt={selectedCompany.alt} 
+                      className={`max-h-full w-auto object-contain ${selectedCompany.className || ''}`}
+                    />
+                  </div>
+                  <h3 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{selectedCompany.name}</h3>
+                  <p className="text-[rgb(var(--color-ink))]/80 mb-8 leading-relaxed font-light">
+                    {selectedCompany.description}
+                  </p>
+                  <a 
+                    href={selectedCompany.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="btn-primary w-full"
+                  >
+                    {t('units.visitWeb')}
+                  </a>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+    </motion.section>
+  )
+}
+
+// -----------------------------------------------------------------------------
+// Advanced Visualizations (Palantir/Sci-Fi Style)
+// -----------------------------------------------------------------------------
+
+function Differentiators() {
+  const { t } = useI18n()
+  const items = [
+    {
+      title: t('differentiators.team.title'),
+      desc: t('differentiators.team.desc'),
+      cta: t('differentiators.team.cta'),
+      link: "#/team",
+      visual: <img src="/equipo%20multidisciplinar%20ok.webp" alt={t('differentiators.team.title')} className="w-full h-full object-cover" />
+    },
+    {
+      title: t('differentiators.holistic.title'),
+      desc: t('differentiators.holistic.desc'),
+      cta: t('differentiators.holistic.cta'),
+      link: "#/manifesto",
+      visual: <img src="/holistica%202%20ok.webp" alt={t('differentiators.holistic.title')} className="w-full h-full object-cover" />
+    },
+    {
+      title: t('differentiators.tech.title'),
+      desc: t('differentiators.tech.desc'),
+      cta: t('differentiators.tech.cta'),
+      link: "#/tech",
+      visual: <img src="/tecnologia%20propia%20ok.webp" alt={t('differentiators.tech.title')} className="w-full h-full object-cover" />
+    }
+  ]
+
+  return (
+    <div id="differentiators" className="relative bg-[rgb(var(--color-bg))]">
+      {items.map((item, i) => (
+        <div 
+          key={i}
+          className="min-h-[80vh] sticky top-0 flex items-center border-t border-[rgb(var(--color-ink))]/5 overflow-hidden"
+          style={{ backgroundColor: 'rgb(var(--color-bg))' }}
+        >
+          {/* Subtle background graphic */}
+          <div className="absolute right-0 top-0 w-1/2 h-full opacity-[0.02] pointer-events-none">
+             <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+               <path d="M0 100 L100 0 L100 100 Z" fill="currentColor" />
+             </svg>
+          </div>
+          
+          {/* Backdrop blur for stacking effect */}
+          <div className="absolute inset-0 backdrop-blur-sm -z-10" />
+
+          <div className="container-edge relative z-10 grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-24 items-center px-6">
+            {/* Text */}
+            <div className={`space-y-6 ${i % 2 === 1 ? 'md:order-2' : ''} z-20`}>
+               <motion.div 
+                 initial={{ opacity: 0, x: -20 }}
+                 whileInView={{ opacity: 1, x: 0 }}
+                 transition={{ duration: 0.7 }}
+                 className="inline-flex items-center gap-3 mb-4"
+               >
+                 <span className="text-[rgb(var(--color-accent-red))] font-mono text-sm">0{i + 1}</span>
+                 <div className="h-px w-12 bg-[rgb(var(--color-accent-red))]/50" />
+               </motion.div>
+               <motion.h2 
+                 initial={{ opacity: 0, y: 20 }}
+                 whileInView={{ opacity: 1, y: 0 }}
+                 transition={{ duration: 0.7, delay: 0.1 }}
+                 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-[rgb(var(--color-ink))] uppercase tracking-tighter"
+                 style={{ wordBreak: 'normal', overflowWrap: 'break-word', hyphens: 'none' }}
+               >
+                 {item.title}
+               </motion.h2>
+               <motion.p 
+                 initial={{ opacity: 0, y: 20 }}
+                 whileInView={{ opacity: 1, y: 0 }}
+                 transition={{ duration: 0.7, delay: 0.2 }}
+                 className="text-lg sm:text-xl md:text-2xl text-[rgb(var(--color-ink))]/90 font-light leading-relaxed max-w-lg"
+               >
+                 {item.desc}
+               </motion.p>
+               
+               <motion.div
+                 initial={{ opacity: 0, y: 20 }}
+                 whileInView={{ opacity: 1, y: 0 }}
+                 transition={{ duration: 0.7, delay: 0.3 }}
+                 className="pt-6"
+               >
+                  <a href={item.link} className="inline-flex items-center gap-2 text-[rgb(var(--color-accent-red))] font-bold uppercase tracking-widest text-sm hover:gap-4 transition-all duration-300">
+                    {item.cta} <span className="text-lg">→</span>
+                  </a>
+               </motion.div>
+            </div>
+
+            {/* Visual */}
+            <div className={`flex justify-center ${i % 2 === 1 ? 'md:order-1' : ''} mt-8 md:mt-0`}>
+               <motion.div 
+                 initial={{ opacity: 0, scale: 0.9 }}
+                 whileInView={{ opacity: 1, scale: 1 }}
+                 transition={{ duration: 0.7, delay: 0.3 }}
+                 className="relative w-full max-w-[500px] aspect-[4/3] md:max-w-none"
+               >
+                 {/* Glass card background */}
+                 <div className="absolute inset-0 bg-[rgb(var(--color-ink))]/5 blur-3xl rounded-3xl opacity-20 transform scale-105" />
+                 <div className="w-full h-full rounded-2xl overflow-hidden border border-[rgb(var(--color-ink))]/10 bg-[rgb(var(--color-bg))]/20 backdrop-blur-sm shadow-2xl">
+                    {item.visual}
+                 </div>
+               </motion.div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
 
 function CallToAction() {
-  const ref = useReveal()
-  const { language } = useLanguage()
-  const formEndpoint = 'https://formspree.io/f/mandzjzo'
-  const [sending, setSending] = useState(false)
-  const [sent, setSent] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [showForm, setShowForm] = useState(false)
-
-  const t = language === 'en'
-    ? {
-        start: 'Start Your Journey',
-        explore: 'Explore Our Capabilities',
-        name: 'Name',
-        email: 'Email',
-        company: 'Company (optional)',
-        message: 'Message',
-        send: 'Send message',
-        success: 'Thanks! We will get back to you shortly.',
-        fail: 'Something went wrong. Please try again or email us directly.',
-      }
-    : {
-        start: 'Comienza tu viaje',
-        explore: 'Explora nuestras capacidades',
-        name: 'Nombre',
-        email: 'Correo',
-        company: 'Empresa (opcional)',
-        message: 'Mensaje',
-        send: 'Enviar mensaje',
-        success: '¡Gracias! Te contactaremos en breve.',
-        fail: 'Ha ocurrido un error. Inténtalo de nuevo o escríbenos por correo.',
-      }
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setSending(true)
-    setError(null)
-    try {
-      const form = e.currentTarget
-      const formData = new FormData(form)
-      // Help Formspree map reply-to and subject
-      const email = String(formData.get('email') || '')
-      const name = String(formData.get('name') || '')
-      const company = String(formData.get('company') || '')
-      if (email) formData.set('_replyto', email)
-      const subject = name ? `${name}${company ? ' · ' + company : ''}` : 'Website contact'
-      formData.set('_subject', subject)
-
-      const res = await fetch(formEndpoint, {
-        method: 'POST',
-        headers: { 'Accept': 'application/json' },
-        body: formData,
-      })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok) {
-        setSent(true)
-        form.reset()
-      } else {
-        const msg = Array.isArray(data?.errors) ? data.errors.map((e: any) => e.message).join(' · ') : (data?.error || 'Request failed')
-        setError(msg)
-      }
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setSending(false)
-    }
-  }
+  const { t } = useI18n()
   return (
-    <section ref={ref} className="relative py-20 md:py-32 reveal" id="contact">
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent_0%,rgba(8,10,76,0.18)_30%,rgba(8,10,76,0.24)_100%)]" />
-      <div className="container-edge text-center">
-        <div className="max-w-4xl mx-auto">
-          <div className="eyebrow mb-4">{language === 'en' ? 'Ready to Transform?' : '¿Listo para transformarte?'}</div>
-          <h2 className="text-3xl md:text-5xl font-semibold mb-6">
-            {language === 'en' ? (
-              <>Build the future of business <TrueUnderline>with us</TrueUnderline></>
-            ) : (
-              <>Construye el futuro del negocio <TrueUnderline>con nosotros</TrueUnderline></>
-            )}
-          </h2>
-          <p className="text-lg md:text-xl text-white/70 mb-8 max-w-2xl mx-auto">
-            {language === 'en'
-              ? 'Join the AI revolution. From concept to market leader, we turn your vision into reality with exponential growth and antifragile strategies.'
-              : 'Únete a la revolución de la IA. Del concepto al líder del mercado, convertimos tu visión en realidad con crecimiento exponencial y estrategias antifrágiles.'}
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-            <button 
-              type="button"
-              onClick={() => setShowForm(true)}
-              className="btn-primary text-lg px-8 py-4 hover:scale-105 transition-transform duration-200"
-            >
-              {t.start}
-            </button>
-            <a 
-              href="#capabilities" 
-              className="btn-ghost text-lg px-8 py-4 hover:scale-105 transition-transform duration-200"
-            >
-              {t.explore}
-            </a>
+    <motion.section 
+      className="relative py-32 md:py-48 overflow-hidden border-t border-[rgb(var(--color-ink))]/5"
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true }}
+      variants={fadeInUp}
+      id="contact"
+    >
+      <div className="container-edge relative z-10">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-start">
+          {/* Left Column - Text */}
+          <div>
+            <h2 className="text-5xl md:text-7xl lg:text-8xl font-bold text-[rgb(var(--color-ink))] mb-8 tracking-tighter">
+              {t('contact.title')}
+            </h2>
+            <p className="text-xl md:text-2xl text-[rgb(var(--color-ink))]/90 font-light mb-8 max-w-xl">
+              {t('contact.subtitle')}
+            </p>
+            
+      
+
+            <div className="mt-12 pt-8 border-t border-[rgb(var(--color-ink))]/10">
+              <p className="text-sm text-[rgb(var(--color-ink))]/50 mb-2">{t('contact.emailLabel')}</p>
+              <a href="mailto:info@taulergroup.com" className="text-lg text-[rgb(var(--color-accent-red))] font-semibold hover:underline">
+                info@taulergroup.com
+              </a>
+            </div>
           </div>
 
-          {/* Contact form modal */}
-          {showForm && (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowForm(false)} />
-              <div className="relative w-full max-w-2xl rounded-2xl border border-white/10 bg-white/10 backdrop-blur p-6 md:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl md:text-2xl font-semibold">{language === 'en' ? 'Contact Tauler Group' : 'Contactar con Tauler Group'}</h3>
-                  <button onClick={() => setShowForm(false)} className="edge-button px-3 py-1">✕</button>
-                </div>
-                <form onSubmit={handleSubmit}>
-                  <input type="hidden" name="language" value={language} />
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs uppercase tracking-widest text-white/60 mb-1">{t.name}</label>
-                      <input name="name" required className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-white placeholder-white/40 focus:outline-none focus:border-white/30" placeholder="John Doe" />
-                    </div>
-                    <div>
-                      <label className="block text-xs uppercase tracking-widest text-white/60 mb-1">{t.email}</label>
-                      <input type="email" name="email" required className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-white placeholder-white/40 focus:outline-none focus:border-white/30" placeholder="john@example.com" />
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    <label className="block text-xs uppercase tracking-widest text-white/60 mb-1">{t.company}</label>
-                    <input name="company" className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-white placeholder-white/40 focus:outline-none focus:border-white/30" placeholder="Example Company" />
-                  </div>
-                  <div className="mt-4">
-                    <label className="block text-xs uppercase tracking-widest text-white/60 mb-1">{t.message}</label>
-                    <textarea name="message" required rows={5} className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-white placeholder-white/40 focus:outline-none focus:border-white/30" placeholder="..." />
-                  </div>
-                  <input type="text" name="_gotcha" className="hidden" tabIndex={-1} autoComplete="off" />
-                  <div className="mt-6 flex items-center gap-3">
-                    <button disabled={sending} type="submit" className={`btn-primary ${sending ? 'opacity-70 cursor-not-allowed' : ''}`}>
-                      {sending ? 'Sending…' : t.send}
-                    </button>
-                    {sent && <span className="text-sm text-green-300">{t.success}</span>}
-                    {error && <span className="text-sm text-red-300">{t.fail}{error ? ` (${error})` : ''}</span>}
-                  </div>
-                </form>
+          {/* Right Column - Form */}
+          <motion.div 
+            className="tech-card p-8 md:p-10 rounded-sm"
+            initial={{ opacity: 0, x: 40 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+          >
+            <h3 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-8">{t('contact.formTitle')}</h3>
+            
+            <form className="space-y-6" action="https://formspree.io/f/mandzjzo" method="POST">
+              <div>
+                <label className="block text-xs uppercase tracking-widest text-[rgb(var(--color-ink))]/50 mb-2">{t('contact.nameLabel')}</label>
+                <input 
+                  type="text" 
+                  name="name" 
+                  required 
+                  className="w-full bg-transparent border-b border-[rgb(var(--color-ink))]/20 py-3 text-[rgb(var(--color-ink))] focus:outline-none focus:border-[rgb(var(--color-accent-red))] transition-colors" 
+                  placeholder={t('contact.namePlaceholder')} 
+                />
               </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-3xl mx-auto">
-            <div className="text-center">
-              <div className="text-2xl md:text-3xl font-bold text-[rgb(var(--color-accent))] mb-2">3-5x</div>
-              <div className="text-sm text-white/60 uppercase tracking-widest">{language === 'en' ? 'ROI in AI Markets' : 'ROI en mercados de IA'}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl md:text-3xl font-bold text-[rgb(var(--color-accent))] mb-2">92%</div>
-              <div className="text-sm text-white/60 uppercase tracking-widest">{language === 'en' ? 'Productivity Boost' : 'Impulso de productividad'}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl md:text-3xl font-bold text-[rgb(var(--color-accent))] mb-2">$4.4T</div>
-              <div className="text-sm text-white/60 uppercase tracking-widest">{language === 'en' ? 'AI Market Opportunity' : 'Oportunidad del mercado de IA'}</div>
-            </div>
-          </div>
+              <div>
+                <label className="block text-xs uppercase tracking-widest text-[rgb(var(--color-ink))]/50 mb-2">{t('contact.emailFieldLabel')}</label>
+                <input 
+                  type="email" 
+                  name="email" 
+                  required 
+                  className="w-full bg-transparent border-b border-[rgb(var(--color-ink))]/20 py-3 text-[rgb(var(--color-ink))] focus:outline-none focus:border-[rgb(var(--color-accent-red))] transition-colors" 
+                  placeholder={t('contact.emailPlaceholder')} 
+                />
+              </div>
+              <div>
+                <label className="block text-xs uppercase tracking-widest text-[rgb(var(--color-ink))]/50 mb-2">{t('contact.companyLabel')}</label>
+                <input 
+                  type="text" 
+                  name="company" 
+                  className="w-full bg-transparent border-b border-[rgb(var(--color-ink))]/20 py-3 text-[rgb(var(--color-ink))] focus:outline-none focus:border-[rgb(var(--color-accent-red))] transition-colors" 
+                  placeholder={t('contact.companyPlaceholder')} 
+                />
+              </div>
+              <div>
+                <label className="block text-xs uppercase tracking-widest text-[rgb(var(--color-ink))]/50 mb-2">{t('contact.messageLabel')}</label>
+                <textarea 
+                  name="message" 
+                  rows={4} 
+                  required
+                  className="w-full bg-transparent border-b border-[rgb(var(--color-ink))]/20 py-3 text-[rgb(var(--color-ink))] focus:outline-none focus:border-[rgb(var(--color-accent-red))] transition-colors resize-none" 
+                  placeholder={t('contact.messagePlaceholder')}
+                ></textarea>
+              </div>
+              <button type="submit" className="w-full btn-primary py-4 mt-4">
+                {t('contact.submit')}
+              </button>
+            </form>
+          </motion.div>
         </div>
       </div>
       
-      {/* Decorative elements removed for a more sober look */}
-    </section>
+      {/* Background decoration */}
+      <div className="absolute inset-0 pointer-events-none -z-10">
+         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-t from-[rgb(var(--color-accent-red))]/5 to-transparent blur-3xl opacity-50" />
+      </div>
+    </motion.section>
   )
 }
 
-export default function App() {
-  const [language, setLanguage] = useState<Language>(() => {
-    if (typeof window === 'undefined') return 'en'
-    const stored = window.localStorage.getItem('tg_lang')
-    return stored === 'es' ? 'es' : 'en'
-  })
+function Navbar() {
+  const { t } = useI18n()
+  const [scrolled, setScrolled] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  
   useEffect(() => {
-    try { window.localStorage.setItem('tg_lang', language) } catch {}
-  }, [language])
+    const handleScroll = () => setScrolled(window.scrollY > 50)
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
+  useEffect(() => {
+    if (menuOpen) document.body.style.overflow = 'hidden'
+    else document.body.style.overflow = ''
+    return () => { document.body.style.overflow = '' }
+  }, [menuOpen])
+
+  const menuItems = [
+    { 
+      title: t('menu.proposal'), 
+      href: "#units", 
+      icon: "01", 
+      desc: t('menu.proposalDesc'),
+      subsections: [
+        { title: t('menu.consulting'), href: "#/consulting" },
+        { title: t('menu.ventureBuilder'), href: "#/venture-building" }
+      ]
+    },
+    { 
+      title: t('menu.about'), 
+      href: "#differentiators", 
+      icon: "02", 
+      desc: t('menu.aboutDesc'),
+      subsections: [
+        { title: t('menu.team'), href: "#/team" },
+        { title: t('menu.manifesto'), href: "#/manifesto" },
+        { title: t('menu.technology'), href: "#/tech" }
+      ]
+    },
+    { 
+      title: t('menu.contact'), 
+      href: "#contact", 
+      icon: "03", 
+      desc: t('menu.contactDesc'),
+      subsections: []
+    },
+  ]
+
+  return (
+    <>
+      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'py-4 bg-[rgb(var(--color-bg))]/80 backdrop-blur-md border-b border-[rgb(var(--color-ink))]/5' : 'py-8 bg-transparent'}`}>
+        <div className="container-edge flex items-center justify-between">
+           <a href="#" className="relative z-50">
+             <img src="/logo tauler.png" alt="Tauler Group" className="h-8 md:h-10 w-auto" />
+           </a>
+
+           <div className="flex items-center gap-4 md:gap-8">
+             <nav className="hidden md:flex items-center gap-8">
+               <a href="#units" className="text-sm font-medium text-[rgb(var(--color-ink))]/70 hover:text-[rgb(var(--color-ink))] transition-colors">{t('nav.proposal')}</a>
+               <a href="#differentiators" className="text-sm font-medium text-[rgb(var(--color-ink))]/70 hover:text-[rgb(var(--color-ink))] transition-colors">{t('nav.about')}</a>
+               <a href="#contact" className="text-sm font-medium text-[rgb(var(--color-ink))]/70 hover:text-[rgb(var(--color-ink))] transition-colors">{t('nav.contact')}</a>
+             </nav>
+             
+             <LanguageSwitch />
+             
+             <button 
+               className="group flex flex-col gap-1.5 w-8 items-end z-50 relative"
+               onClick={() => setMenuOpen(!menuOpen)}
+             >
+                <span className={`h-0.5 bg-[rgb(var(--color-ink))] transition-all duration-300 ${menuOpen ? 'w-8 rotate-45 translate-y-2 bg-white' : 'w-8 group-hover:w-6'}`} />
+                <span className={`h-0.5 bg-[rgb(var(--color-ink))] transition-all duration-300 ${menuOpen ? 'opacity-0' : 'w-6 group-hover:w-8'}`} />
+                <span className={`h-0.5 bg-[rgb(var(--color-ink))] transition-all duration-300 ${menuOpen ? 'w-8 -rotate-45 -translate-y-2 bg-white' : 'w-4 group-hover:w-6'}`} />
+             </button>
+           </div>
+        </div>
+      </header>
+
+      {/* Premium Side Menu - Palantir Style */}
+      <AnimatePresence>
+        {menuOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-40"
+              onClick={() => setMenuOpen(false)}
+            />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="fixed top-0 right-0 h-full w-full md:w-[600px] bg-[rgb(8,10,76)] z-50 shadow-2xl border-l border-white/10"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[rgb(var(--color-accent-red))] to-transparent" />
+              
+              <div className="absolute top-8 right-8 z-50">
+                <button onClick={() => setMenuOpen(false)} className="text-white/50 hover:text-white transition-colors">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Menu Content */}
+              <div className="h-full overflow-y-auto px-8 md:px-12 py-20">
+                <div className="mb-16 flex items-center justify-between">
+                  <div className="eyebrow justify-start flex">TAULER GROUP</div>
+                  <LanguageSwitchMenu />
+                </div>
+
+                {/* Menu Items */}
+                <div className="space-y-8 mb-16">
+                  {menuItems.map((item) => (
+                    <div key={item.title} className="space-y-3">
+                      <a
+                        href={item.href}
+                        onClick={() => setMenuOpen(false)}
+                        className="block tech-card p-6 rounded-sm group/item transition-all duration-300 hover:bg-white/5 border border-white/5 hover:border-white/10"
+                      >
+                        <div className="flex items-center gap-6">
+                           <div className="w-12 h-12 rounded-full border border-[rgb(var(--color-accent-red))]/30 flex items-center justify-center text-[rgb(var(--color-accent-red))] font-mono text-sm">
+                             {item.icon}
+                           </div>
+                           <div>
+                             <h3 className="text-xl font-bold text-white mb-1 group-hover/item:text-[rgb(var(--color-accent-red))] transition-colors">{item.title}</h3>
+                             <p className="text-white/50 text-sm font-light">{item.desc}</p>
+                           </div>
+                           <div className="ml-auto opacity-0 group-hover/item:opacity-100 transition-opacity -translate-x-4 group-hover/item:translate-x-0 duration-300">
+                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                           </div>
+                        </div>
+                      </a>
+                      
+                      {/* Subsections */}
+                      {item.subsections && item.subsections.length > 0 && (
+                        <div className="ml-20 space-y-2">
+                          {item.subsections.map((sub) => (
+                            <a
+                              key={sub.title}
+                              href={sub.href}
+                              onClick={() => setMenuOpen(false)}
+                              className="block text-white/60 hover:text-[rgb(var(--color-accent-red))] transition-colors text-sm py-1.5 px-3 hover:bg-white/5 rounded-sm"
+                            >
+                              › {sub.title}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </>
+  )
+}
+
+function Footer() {
+  const { t } = useI18n()
+  return (
+    <footer className="bg-[rgb(var(--color-bg))] border-t border-[rgb(var(--color-ink))]/5 py-20">
+      <div className="container-edge">
+        <div className="grid md:grid-cols-4 gap-12 mb-16">
+          <div className="md:col-span-2">
+            <img src="/logo tauler.png" alt="Tauler Group" className="h-8 w-auto mb-8" />
+            <p className="text-[rgb(var(--color-ink))]/90 max-w-sm font-light leading-relaxed">
+              {t('footer.description')}
+            </p>
+          </div>
+          
+          <div>
+            <h4 className="text-sm font-bold uppercase tracking-widest text-[rgb(var(--color-ink))] mb-6">{t('footer.explore')}</h4>
+            <ul className="space-y-4 text-[rgb(var(--color-ink))]/90 text-sm">
+              <li><a href="#units" className="hover:text-[rgb(var(--color-accent-red))] transition-colors">{t('footer.proposal')}</a></li>
+              <li><a href="#differentiators" className="hover:text-[rgb(var(--color-accent-red))] transition-colors">{t('footer.about')}</a></li>
+              <li><a href="#/team" className="hover:text-[rgb(var(--color-accent-red))] transition-colors">{t('footer.team')}</a></li>
+              <li><a href="#/manifesto" className="hover:text-[rgb(var(--color-accent-red))] transition-colors">{t('footer.manifesto')}</a></li>
+              <li><a href="#/tech" className="hover:text-[rgb(var(--color-accent-red))] transition-colors">{t('footer.technology')}</a></li>
+              <li><a href="#contact" className="hover:text-[rgb(var(--color-accent-red))] transition-colors">{t('footer.contact')}</a></li>
+            </ul>
+          </div>
+          
+          <div>
+            <h4 className="text-sm font-bold uppercase tracking-widest text-[rgb(var(--color-ink))] mb-6">{t('footer.legal')}</h4>
+            <ul className="space-y-4 text-[rgb(var(--color-ink))]/90 text-sm">
+              <li><a href="#/privacy" className="hover:text-[rgb(var(--color-accent-red))] transition-colors">{t('footer.privacy')}</a></li>
+              <li><a href="#/cookies" className="hover:text-[rgb(var(--color-accent-red))] transition-colors">{t('footer.cookies')}</a></li>
+              <li><a href="#/legal" className="hover:text-[rgb(var(--color-accent-red))] transition-colors">{t('footer.legalNotice')}</a></li>
+            </ul>
+          </div>
+        </div>
+        
+        <div className="pt-8 border-t border-[rgb(var(--color-ink))]/5 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-[rgb(var(--color-ink))]/80">
+          <p>{t('footer.copyright').replace('{year}', new Date().getFullYear().toString())}</p>
+          <div className="flex gap-6">
+            <a href="https://www.linkedin.com/company/tauler-group/" className="hover:text-[rgb(var(--color-ink))] transition-colors">LinkedIn</a>
+
+          </div>
+        </div>
+      </div>
+    </footer>
+  )
+}
+
+function LegalPrivacy() {
+  const { t } = useI18n()
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+  
+  return (
+    <div className="bg-[rgb(var(--color-bg))] min-h-screen">
+      <Navbar />
+      <div className="container-edge py-32 max-w-4xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+        >
+          <div className="eyebrow mb-6">{t('legal.info')}</div>
+          <h1 className="text-4xl md:text-6xl font-bold text-[rgb(var(--color-ink))] mb-8">
+            {t('legal.privacyTitle')}
+          </h1>
+          <p className="text-sm text-[rgb(var(--color-ink))]/50 mb-12">
+            {t('legal.lastUpdate')}
+          </p>
+
+          <div className="space-y-10 text-[rgb(var(--color-ink))]/80 leading-relaxed">
+            <section>
+              <h2 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('legal.responsibleTitle')}</h2>
+              <div className="pl-6 border-l-2 border-[rgb(var(--color-ink))]/10">
+                <p className="mb-2"><strong>TAULER GROUP VENTURES S.L.</strong></p>
+                <p className="mb-2"><strong>{t('legal.responsibleAddress')}</strong> Plaza Curtidos Hnos. Dorta, 7 - 38005, Santa Cruz de Tfe.</p>
+                <p className="mb-2"><strong>{t('legal.responsibleEmail')}</strong> <a href="mailto:info@taulergroup.com" className="text-[rgb(var(--color-accent-red))] hover:underline">info@taulergroup.com</a></p>
+                <p><strong>CIF:</strong> B21742259</p>
+              </div>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('legal.purposeTitle')}</h2>
+              <p className="mb-3">{t('legal.purposeIntro')}</p>
+              <ul className="list-none space-y-2 ml-4">
+                <li className="flex items-start gap-3">
+                  <span className="text-[rgb(var(--color-accent-red))] mt-1">•</span>
+                  <span>{t('legal.purpose1')}</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-[rgb(var(--color-accent-red))] mt-1">•</span>
+                  <span>{t('legal.purpose2')}</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-[rgb(var(--color-accent-red))] mt-1">•</span>
+                  <span>{t('legal.purpose3')}</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-[rgb(var(--color-accent-red))] mt-1">•</span>
+                  <span>{t('legal.purpose4')}</span>
+                </li>
+              </ul>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('legal.legitimationTitle')}</h2>
+              <p className="mb-3">{t('legal.legitimationIntro')}</p>
+              <ul className="list-none space-y-2 ml-4">
+                <li className="flex items-start gap-3">
+                  <span className="text-[rgb(var(--color-accent-red))] mt-1">•</span>
+                  <span>{t('legal.legitimation1')}</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-[rgb(var(--color-accent-red))] mt-1">•</span>
+                  <span>{t('legal.legitimation2')}</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-[rgb(var(--color-accent-red))] mt-1">•</span>
+                  <span>{t('legal.legitimation3')}</span>
+                </li>
+              </ul>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('legal.retentionTitle')}</h2>
+              <p>{t('legal.retentionText')}</p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('legal.recipientsTitle')}</h2>
+              <p>{t('legal.recipientsText')}</p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('legal.rightsTitle')}</h2>
+              <p className="mb-3">
+                {t('legal.rightsText')}{' '}
+                <a href="mailto:info@taulergroup.com" className="text-[rgb(var(--color-accent-red))] hover:underline font-semibold">
+                  info@taulergroup.com
+                </a>
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('legal.authorityTitle')}</h2>
+              <p>
+                {t('legal.authorityText')}{' '}
+                <a 
+                  href="https://www.aepd.es" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-[rgb(var(--color-accent-red))] hover:underline font-semibold"
+                >
+                  {t('legal.authorityLink')}
+                </a>{' '}
+                {t('legal.authorityEnd')}
+              </p>
+            </section>
+          </div>
+
+          <div className="mt-16 pt-8 border-t border-[rgb(var(--color-ink))]/10">
+            <a href="/" className="btn-ghost">
+              {t('legal.backHome')}
+            </a>
+          </div>
+        </motion.div>
+      </div>
+      <Footer />
+    </div>
+  )
+}
+
+function LegalCookies() {
+  const { t } = useI18n()
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+  
+  return (
+    <div className="bg-[rgb(var(--color-bg))] min-h-screen">
+      <Navbar />
+      <div className="container-edge py-32 max-w-4xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+        >
+          <div className="eyebrow mb-6">{t('legal.info')}</div>
+          <h1 className="text-4xl md:text-6xl font-bold text-[rgb(var(--color-ink))] mb-8">
+            {t('legal.cookiesTitle')}
+          </h1>
+          <p className="text-sm text-[rgb(var(--color-ink))]/50 mb-12">
+            {t('legal.lastUpdate')}
+          </p>
+
+          <div className="space-y-10 text-[rgb(var(--color-ink))]/80 leading-relaxed">
+            <section>
+              <h2 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('legal.cookiesWhat')}</h2>
+              <p>{t('legal.cookiesWhatText')}</p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('legal.cookiesTypes')}</h2>
+              
+              <div className="space-y-6">
+                <div className="tech-card p-6 rounded-sm">
+                  <h3 className="text-xl font-bold text-[rgb(var(--color-ink))] mb-3">{t('legal.cookiesTechnical')}</h3>
+                  <ul className="list-none space-y-2">
+                    <li className="flex items-start gap-3">
+                      <span className="text-[rgb(var(--color-accent-red))] mt-1">•</span>
+                      <span>{t('legal.cookiesTechnical1')}</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="text-[rgb(var(--color-accent-red))] mt-1">•</span>
+                      <span>{t('legal.cookiesTechnical2')}</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="tech-card p-6 rounded-sm">
+                  <h3 className="text-xl font-bold text-[rgb(var(--color-ink))] mb-3">{t('legal.cookiesAnalytics')}</h3>
+                  <ul className="list-none space-y-2">
+                    <li className="flex items-start gap-3">
+                      <span className="text-[rgb(var(--color-accent-red))] mt-1">•</span>
+                      <span>{t('legal.cookiesAnalytics1')}</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="text-[rgb(var(--color-accent-red))] mt-1">•</span>
+                      <span>{t('legal.cookiesAnalytics2')}</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="tech-card p-6 rounded-sm">
+                  <h3 className="text-xl font-bold text-[rgb(var(--color-ink))] mb-3">{t('legal.cookiesPreferences')}</h3>
+                  <ul className="list-none space-y-2">
+                    <li className="flex items-start gap-3">
+                      <span className="text-[rgb(var(--color-accent-red))] mt-1">•</span>
+                      <span>{t('legal.cookiesPreferences1')}</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="text-[rgb(var(--color-accent-red))] mt-1">•</span>
+                      <span>{t('legal.cookiesPreferences2')}</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('legal.cookiesManage')}</h2>
+              <p className="mb-4">{t('legal.cookiesManageText1')}</p>
+              <p>{t('legal.cookiesManageText2')}</p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('legal.cookiesMore')}</h2>
+              <p>
+                {t('legal.cookiesMoreText')}{' '}
+                <a href="mailto:info@taulergroup.com" className="text-[rgb(var(--color-accent-red))] hover:underline font-semibold">
+                  info@taulergroup.com
+                </a>
+              </p>
+            </section>
+          </div>
+
+          <div className="mt-16 pt-8 border-t border-[rgb(var(--color-ink))]/10">
+            <a href="/" className="btn-ghost">
+              {t('legal.backHome')}
+            </a>
+          </div>
+        </motion.div>
+      </div>
+      <Footer />
+    </div>
+  )
+}
+
+function LegalNotice() {
+  const { t } = useI18n()
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+  
+  return (
+    <div className="bg-[rgb(var(--color-bg))] min-h-screen">
+      <Navbar />
+      <div className="container-edge py-32 max-w-4xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+        >
+          <div className="eyebrow mb-6">{t('legal.info')}</div>
+          <h1 className="text-4xl md:text-6xl font-bold text-[rgb(var(--color-ink))] mb-8">
+            {t('legal.legalNoticeTitle')}
+          </h1>
+
+          <div className="space-y-10 text-[rgb(var(--color-ink))]/80 leading-relaxed">
+            <section>
+              <h2 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('legal.companyData')}</h2>
+              <div className="pl-6 border-l-2 border-[rgb(var(--color-ink))]/10">
+                <p className="mb-2">{t('legal.companyOwnership')} <strong>TAULER GROUP VENTURES S.L.</strong></p>
+                <p className="mb-2"><strong>CIF:</strong> B21742259</p>
+                <p className="mb-4"><strong>Domicilio:</strong> Plaza Curtidos Hnos. Dorta, 7 - 38005, Santa Cruz de Tfe.</p>
+                <p>
+                  {t('legal.companyContact')}{' '}
+                  <a href="mailto:info@taulergroup.com" className="text-[rgb(var(--color-accent-red))] hover:underline font-semibold">
+                    info@taulergroup.com
+                  </a>
+                </p>
+              </div>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('legal.applicableLaw')}</h2>
+              <p>{t('legal.applicableLawText')}</p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('legal.useConditions')}</h2>
+              <p className="mb-4">{t('legal.useConditionsText1')}</p>
+              <p className="mb-4">{t('legal.useConditionsText2')}</p>
+              <p>{t('legal.useConditionsText3')}</p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('legal.intellectualProperty')}</h2>
+              <p className="mb-4">{t('legal.intellectualPropertyText1')}</p>
+              <p className="mb-4">{t('legal.intellectualPropertyText2')}</p>
+              <p className="mb-4">{t('legal.intellectualPropertyText3')}</p>
+              <p className="mb-4">{t('legal.intellectualPropertyText4')}</p>
+              <p className="mb-4">{t('legal.intellectualPropertyText5')}</p>
+              <p>
+                {t('legal.intellectualPropertyText6')}{' '}
+                <a href="mailto:info@taulergroup.com" className="text-[rgb(var(--color-accent-red))] hover:underline font-semibold">
+                  info@taulergroup.com
+                </a>
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('legal.generalConditions')}</h2>
+              <p className="mb-4">{t('legal.generalConditionsText1')}</p>
+              <p className="mb-4">{t('legal.generalConditionsText2')}</p>
+              <p>
+                {t('legal.generalConditionsText3')}{' '}
+                <a href="#/privacy" className="text-[rgb(var(--color-accent-red))] hover:underline font-semibold">
+                  {t('legal.privacyPolicyLink')}
+                </a>{' '}
+                {t('legal.ourWeb')}
+              </p>
+            </section>
+          </div>
+
+          <div className="mt-16 pt-8 border-t border-[rgb(var(--color-ink))]/10">
+            <a href="/" className="btn-ghost">
+              {t('legal.backHome')}
+            </a>
+          </div>
+        </motion.div>
+      </div>
+      <Footer />
+    </div>
+  )
+}
+
+// -----------------------------------------------------------------------------
+// Team Hero Visualization
+// -----------------------------------------------------------------------------
+
+function TeamHeroViz() {
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      {/* Neural Network Background */}
+      <svg className="absolute inset-0 w-full h-full opacity-[0.15]">
+        <defs>
+          <pattern id="neural-grid" width="100" height="100" patternUnits="userSpaceOnUse">
+             <circle cx="2" cy="2" r="1" fill="currentColor" className="text-[rgb(var(--color-ink))]" />
+          </pattern>
+        </defs>
+        
+        {/* Connection Lines */}
+        {[...Array(6)].map((_, i) => (
+           <motion.path
+             key={i}
+             d={`M ${-100 + i * 200} 100 Q ${window.innerWidth / 2} ${window.innerHeight / 2 + (i % 2 === 0 ? 100 : -100)} ${window.innerWidth + 100} ${window.innerHeight - 100 + i * 50}`}
+             stroke="rgb(var(--color-accent-red))"
+             strokeWidth="1"
+             fill="none"
+             initial={{ pathLength: 0, opacity: 0 }}
+             animate={{ pathLength: 1, opacity: 0.3 }}
+             transition={{ duration: 3, delay: i * 0.2, ease: "easeInOut" }}
+           />
+        ))}
+
+        {/* Floating Nodes */}
+        {[...Array(15)].map((_, i) => (
+          <motion.circle
+            key={i}
+            cx={Math.random() * 100 + "%"}
+            cy={Math.random() * 100 + "%"}
+            r={Math.random() * 2 + 1}
+            fill="rgb(var(--color-ink))"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0.2, 0.5, 0.2] }}
+            transition={{ duration: 4 + Math.random() * 4, repeat: Infinity, ease: "easeInOut" }}
+          />
+        ))}
+      </svg>
+      
+      {/* Gradient Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[rgb(var(--color-bg))] via-transparent to-[rgb(var(--color-bg))]" />
+    </div>
+  )
+}
+
+function TeamPage() {
+  const { t } = useI18n()
+  const teamMembers = [
+    {
+      name: "Álvaro Toledo",
+      role: t('teamPage.alvaroRole'),
+      linkedin: "https://linkedin.com/in/toledotauler/",
+      highlights: [
+        {
+          title: t('teamPage.alvaroHighlight1Title'),
+          desc: t('teamPage.alvaroHighlight1Desc')
+        },
+        {
+          title: t('teamPage.alvaroHighlight2Title'),
+          desc: t('teamPage.alvaroHighlight2Desc')
+        },
+        {
+          title: t('teamPage.alvaroHighlight3Title'),
+          desc: t('teamPage.alvaroHighlight3Desc')
+        }
+      ],
+      bio: (
+        <>
+          <p>{t('teamPage.alvaroBio1')}</p>
+          <p>{t('teamPage.alvaroBio2')}</p>
+        </>
+      ),
+      imagePlaceholder: (
+        <div className="w-full h-full relative overflow-hidden bg-transparent">
+           <img src="/alvaro.png" alt="Álvaro Tauler" className="w-full h-full object-contain object-bottom scale-110 translate-y-2" />
+        </div>
+      )
+    },
+    {
+      name: "Manuel Toledo",
+      role: t('teamPage.manuelRole'),
+      linkedin: "https://linkedin.com/in/manueltoledotauler/",
+      highlights: [
+        {
+          title: t('teamPage.manuelHighlight1Title'),
+          desc: t('teamPage.manuelHighlight1Desc')
+        },
+        {
+          title: t('teamPage.manuelHighlight2Title'),
+          desc: t('teamPage.manuelHighlight2Desc')
+        },
+         {
+          title: t('teamPage.manuelHighlight3Title'),
+          desc: t('teamPage.manuelHighlight3Desc')
+        }
+      ],
+      bio: (
+        <>
+          <p>{t('teamPage.manuelBio1')}</p>
+          <p>{t('teamPage.manuelBio2')}</p>
+        </>
+      ),
+      imagePlaceholder: (
+         <div className="w-full h-full relative overflow-hidden bg-transparent">
+           <img src="/manuel.png" alt="Manuel Toledo" className="w-full h-full object-contain object-bottom scale-110 translate-y-2" />
+        </div>
+      )
+    }
+  ]
+
+  return (
+    <div className="bg-[rgb(var(--color-bg))] min-h-screen">
+       <Navbar />
+      
+      {/* Hero Section */}
+      <motion.section 
+        className="relative pt-40 pb-32 w-full overflow-hidden"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1 }}
+      >
+        {/* Background Image */}
+        <div className="absolute inset-0 z-0">
+           <img src="/equipo%20page%20ok.webp" alt="Team Background" className="w-full h-full object-cover opacity-60" />
+           <div className="absolute inset-0 bg-gradient-to-b from-[rgb(var(--color-bg))] via-[rgb(var(--color-bg))]/40 to-[rgb(var(--color-bg))]" />
+        </div>
+        
+        <div className="relative z-10 max-w-5xl mx-auto text-center px-6">
+           <motion.div 
+             className="eyebrow mb-6 justify-center flex"
+             initial={{ opacity: 0, y: 20 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ delay: 0.2 }}
+           >
+             {t('teamPage.eyebrow')}
+           </motion.div>
+           
+           <motion.h1 
+             className="text-4xl md:text-6xl lg:text-6xl mb-4 tracking-tighter text-[rgb(var(--color-ink))] font-bold"
+             initial={{ opacity: 0, y: 30 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ delay: 0.3, duration: 0.8, ease: "easeOut" }}
+           >
+             {t('teamPage.title1')} <br />
+             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[rgb(var(--color-ink))] to-[rgb(var(--color-ink))]/80">{t('teamPage.title2')}</span>
+           </motion.h1>
+           
+           <motion.p 
+             className="text-xl md:text-2xl text-[rgb(var(--color-ink))]/80 font-light max-w-3xl mx-auto leading-relaxed"
+             initial={{ opacity: 0, y: 20 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ delay: 0.5, duration: 0.8 }}
+           >
+             {t('teamPage.subtitle')}
+           </motion.p>
+        </div>
+      </motion.section>
+
+      {/* Team Rows */}
+      <div className="w-full border-t border-[rgb(var(--color-ink))]/10">
+        {teamMembers.map((member, index) => (
+          <motion.div 
+            key={index}
+            className="w-full border-b border-[rgb(var(--color-ink))]/10 bg-[rgb(var(--color-bg))]"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-5%" }}
+            transition={{ duration: 0.6, delay: index * 0.1 }}
+          >
+            <div className="container-edge py-12 md:py-16"> {/* Reduced padding for compact rows */}
+              <div className="grid lg:grid-cols-12 gap-8 lg:gap-16 items-start">
+                
+                {/* Photo & Name Column */}
+                <div className="lg:col-span-3 flex flex-col items-center lg:items-start text-center lg:text-left">
+                   <div className="mb-4 relative w-48 h-48 md:w-56 md:h-56 shrink-0 overflow-hidden">
+                      {member.imagePlaceholder}
+                      <div className="absolute inset-0 bg-gradient-to-t from-[rgb(var(--color-bg))] via-transparent to-transparent opacity-10" />
+                   </div>
+                   
+                   <div>
+                     <h2 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-1">{member.name}</h2>
+                     <p className="text-[rgb(var(--color-accent-red))] font-mono uppercase tracking-widest text-xs mb-3">{member.role}</p>
+                     <a href={member.linkedin} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center w-8 h-8 text-[rgb(var(--color-ink))]/40 hover:text-[#0077b5] hover:bg-[rgb(var(--color-ink))]/5 rounded-full transition-all duration-300">
+                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+                     </a>
+                   </div>
+                </div>
+
+                {/* Highlights Column - Middle */}
+                <div className="lg:col-span-4">
+                   <ul className="space-y-3">
+                     {member.highlights.map((h, i) => (
+                       <li key={i} className="flex items-start gap-3">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[rgb(var(--color-accent-red))] mt-2 shrink-0" />
+                          <span className="text-[rgb(var(--color-ink))]/90 text-sm">
+                            <strong className="text-[rgb(var(--color-ink))] font-semibold block mb-0.5">{h.title}</strong>
+                            <span className="opacity-80">{h.desc}</span>
+                          </span>
+                       </li>
+                     ))}
+                   </ul>
+                </div>
+
+                {/* Bio Column - Right */}
+                <div className="lg:col-span-5 space-y-4 text-base md:text-lg text-[rgb(var(--color-ink))]/80 font-light leading-relaxed">
+                     {member.bio}
+                </div>
+
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+      
+      <Footer />
+    </div>
+  )
+}
+
+function ManifestoPage() {
+  const { t } = useI18n()
+  return (
+    <div className="bg-[rgb(var(--color-bg))] min-h-screen">
+      <Navbar />
+      
+      {/* Hero Section with Background Image */}
+      <motion.section 
+        className="relative pt-32 pb-20 w-full overflow-hidden"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1 }}
+      >
+        {/* Background Image */}
+        <div className="absolute inset-0 z-0">
+           <img src="/holistica%202%20ok.webp" alt={t('differentiators.holistic.title')} className="w-full h-full object-cover opacity-40" />
+           <div className="absolute inset-0 bg-gradient-to-b from-[rgb(var(--color-bg))] via-[rgb(var(--color-bg))]/60 to-[rgb(var(--color-bg))]" />
+        </div>
+        
+        <div className="relative z-10 container-edge">
+          <div className="max-w-4xl mx-auto">
+            <motion.div 
+              className="eyebrow mb-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              {t('manifestoPage.eyebrow')}
+            </motion.div>
+            
+            <motion.h1 
+              className="text-6xl md:text-6xl lg:text-6xl font-bold text-[rgb(var(--color-ink))] mb-12 tracking-tight"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.8, ease: "easeOut" }}
+            >
+              {t('manifestoPage.title')} <span className="text-[rgb(var(--color-ink))]/40">{t('manifestoPage.titleHighlight')}</span>
+            </motion.h1>
+          </div>
+        </div>
+      </motion.section>
+
+      <motion.div 
+        className="pb-20 container-edge"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.8, delay: 0.5 }}
+      >
+        <div className="max-w-4xl mx-auto">
+          
+          <div className="space-y-16 text-lg md:text-xl text-[rgb(var(--color-ink))]/80 font-light leading-relaxed">
+            <div className="pl-6 md:pl-10 border-l-2 border-[rgb(var(--color-accent-red))]">
+              <h3 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('manifestoPage.principle1Title')}</h3>
+              <p>{t('manifestoPage.principle1Text')}</p>
+            </div>
+
+            <div className="pl-6 md:pl-10 border-l-2 border-[rgb(var(--color-accent-red))]">
+              <h3 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('manifestoPage.principle2Title')}</h3>
+              <p className="mb-4">{t('manifestoPage.principle2Text')}</p>
+            </div>
+
+            <div className="pl-6 md:pl-10 border-l-2 border-[rgb(var(--color-accent-red))]">
+              <h3 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('manifestoPage.principle3Title')}</h3>
+              <p className="mb-4">{t('manifestoPage.principle3Text')}</p>
+            </div>
+
+            <div className="pl-6 md:pl-10 border-l-2 border-[rgb(var(--color-accent-red))]">
+              <h3 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('manifestoPage.principle4Title')}</h3>
+              <p className="mb-4">{t('manifestoPage.principle4Text')}</p>
+            </div>
+
+            <div className="pl-6 md:pl-10 border-l-2 border-[rgb(var(--color-accent-red))]">
+              <h3 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('manifestoPage.principle5Title')}</h3>
+              <p className="mb-4">{t('manifestoPage.principle5Text')}</p>
+            </div>
+
+            <div className="pl-6 md:pl-10 border-l-2 border-[rgb(var(--color-accent-red))]">
+              <h3 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('manifestoPage.principle6Title')}</h3>
+              <p className="mb-4">{t('manifestoPage.principle6Text')}</p>
+            </div>
+
+            <div className="pl-6 md:pl-10 border-l-2 border-[rgb(var(--color-accent-red))]">
+              <h3 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('manifestoPage.principle7Title')}</h3>
+              <p className="mb-4">{t('manifestoPage.principle7Text')}</p>
+            </div>
+          </div>
+
+          <div className="mt-20 pt-10 border-t border-[rgb(var(--color-ink))]/10">
+            <p className="text-3xl md:text-4xl font-bold text-[rgb(var(--color-ink))] mb-8 leading-tight">
+              {t('manifestoPage.conclusion')}
+            </p>
+            <a href="#contact" className="btn-primary">
+              {t('manifestoPage.cta')}
+            </a>
+          </div>
+        </div>
+      </motion.div>
+      <Footer />
+    </div>
+  )
+}
+
+function TechPage() {
+  const { t } = useI18n()
+  return (
+    <div className="bg-[rgb(var(--color-bg))] min-h-screen">
+      <Navbar />
+      
+      {/* Hero Section with Background Image */}
+      <motion.section 
+        className="relative pt-32 pb-20 w-full overflow-hidden"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1 }}
+      >
+        {/* Background Image */}
+        <div className="absolute inset-0 z-0">
+           <img src="/tecnologia%20propia%20ok.webp" alt={t('differentiators.tech.title')} className="w-full h-full object-cover opacity-40" />
+           <div className="absolute inset-0 bg-gradient-to-b from-[rgb(var(--color-bg))] via-[rgb(var(--color-bg))]/60 to-[rgb(var(--color-bg))]" />
+        </div>
+        
+        <div className="relative z-10 container-edge">
+          <div className="max-w-4xl mx-auto">
+            <motion.div 
+              className="eyebrow mb-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              {t('techPage.eyebrow')}
+            </motion.div>
+            
+            <motion.h1 
+              className="text-4xl md:text-5xl lg:text-6xl font-bold text-[rgb(var(--color-ink))] mb-8 tracking-tight leading-tight"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.8, ease: "easeOut" }}
+            >
+              {t('techPage.title')}
+            </motion.h1>
+          </div>
+        </div>
+      </motion.section>
+
+      <motion.div 
+        className="pb-20 container-edge"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.8, delay: 0.5 }}
+      >
+        <div className="max-w-4xl mx-auto">
+          
+          <div className="space-y-8 text-lg md:text-xl text-[rgb(var(--color-ink))]/80 font-light leading-relaxed">
+            <p>{t('techPage.intro1')}</p>
+            
+            <p>{t('techPage.intro2')}</p>
+
+            <div className="pl-6 md:pl-10 border-l-2 border-[rgb(var(--color-accent-red))] my-12">
+              <h2 className="text-2xl md:text-3xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('techPage.section1Title')}</h2>
+              <p>{t('techPage.section1Text')}</p>
+            </div>
+
+            <p>{t('techPage.section1After')}</p>
+
+            <p>{t('techPage.focusIntro')}</p>
+
+            <ul className="list-none space-y-3 ml-6 my-6">
+              <li className="flex items-start gap-3">
+                <span className="text-[rgb(var(--color-accent-red))] mt-1">→</span>
+                <span>{t('techPage.focus1')}</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-[rgb(var(--color-accent-red))] mt-1">→</span>
+                <span>{t('techPage.focus2')}</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-[rgb(var(--color-accent-red))] mt-1">→</span>
+                <span>{t('techPage.focus3')}</span>
+              </li>
+            </ul>
+
+            <p>{t('techPage.focusAfter')}</p>
+
+            <div className="pl-6 md:pl-10 border-l-2 border-[rgb(var(--color-accent-red))] my-12">
+              <h2 className="text-2xl md:text-3xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('techPage.section2Title')}</h2>
+              <p className="mb-4">{t('techPage.section2Text')}</p>
+            </div>
+
+            <p>{t('techPage.stackIntro')}</p>
+
+            <ul className="list-none space-y-3 ml-6 my-6">
+              <li className="flex items-start gap-3">
+                <span className="text-[rgb(var(--color-accent-red))] mt-1">→</span>
+                <span>{t('techPage.stack1')}</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-[rgb(var(--color-accent-red))] mt-1">→</span>
+                <span>{t('techPage.stack2')}</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-[rgb(var(--color-accent-red))] mt-1">→</span>
+                <span>{t('techPage.stack3')}</span>
+              </li>
+            </ul>
+
+            <p>{t('techPage.stackAfter')}</p>
+
+            <div className="pl-6 md:pl-10 border-l-2 border-[rgb(var(--color-accent-red))] my-12">
+              <h2 className="text-2xl md:text-3xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('techPage.section3Title')}</h2>
+              <p className="mb-4">{t('techPage.section3Text')}</p>
+            </div>
+
+            <ul className="list-none space-y-3 ml-6 my-6">
+              <li className="flex items-start gap-3">
+                <span className="text-[rgb(var(--color-accent-red))] mt-1">→</span>
+                <span>{t('techPage.front1')}</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-[rgb(var(--color-accent-red))] mt-1">→</span>
+                <span>{t('techPage.front2')}</span>
+              </li>
+            </ul>
+
+            <p>{t('techPage.frontsAfter1')}</p>
+
+            <p>{t('techPage.frontsAfter2')}</p>
+
+            <ul className="list-none space-y-3 ml-6 my-6">
+              <li className="flex items-start gap-3">
+                <span className="text-[rgb(var(--color-accent-red))] mt-1">→</span>
+                <span>{t('techPage.implication1')}</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-[rgb(var(--color-accent-red))] mt-1">→</span>
+                <span>{t('techPage.implication2')}</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-[rgb(var(--color-accent-red))] mt-1">→</span>
+                <span>{t('techPage.implication3')}</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-[rgb(var(--color-accent-red))] mt-1">→</span>
+                <span>{t('techPage.implication4')}</span>
+              </li>
+            </ul>
+
+            <div className="pl-6 md:pl-10 border-l-2 border-[rgb(var(--color-accent-red))] my-12">
+              <h2 className="text-2xl md:text-3xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('techPage.section4Title')}</h2>
+              <p className="mb-4">{t('techPage.section4Text1')}</p>
+              <p>{t('techPage.section4Text2')}</p>
+            </div>
+
+            <ul className="list-none space-y-3 ml-6 my-6">
+              <li className="flex items-start gap-3">
+                <span className="text-[rgb(var(--color-accent-red))] mt-1">→</span>
+                <span>{t('techPage.approach1')}</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-[rgb(var(--color-accent-red))] mt-1">→</span>
+                <span>{t('techPage.approach2')}</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-[rgb(var(--color-accent-red))] mt-1">→</span>
+                <span>{t('techPage.approach3')}</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-[rgb(var(--color-accent-red))] mt-1">→</span>
+                <span>{t('techPage.approach4')}</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-[rgb(var(--color-accent-red))] mt-1">→</span>
+                <span>{t('techPage.approach5')}</span>
+              </li>
+            </ul>
+
+            <p>{t('techPage.approachAfter')}</p>
+
+            <div className="pl-6 md:pl-10 border-l-2 border-[rgb(var(--color-accent-red))] my-12">
+              <h2 className="text-2xl md:text-3xl font-bold text-[rgb(var(--color-ink))] mb-4">{t('techPage.section5Title')}</h2>
+              <p className="mb-4">{t('techPage.section5Text')}</p>
+            </div>
+
+            <p>{t('techPage.conclusion1')}</p>
+
+            <p className="text-xl md:text-2xl font-semibold text-[rgb(var(--color-ink))] mt-12">
+              {t('techPage.conclusion2')}
+            </p>
+          </div>
+
+          <div className="mt-16 pt-10 border-t border-[rgb(var(--color-ink))]/10">
+            <a href="#contact" className="btn-primary">{t('techPage.cta')}</a>
+          </div>
+        </div>
+      </motion.div>
+      <Footer />
+    </div>
+  )
+}
+
+function ConsultingPage() {
+  const { t } = useI18n()
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+  
+  return (
+    <div className="py-32 container-edge">
+      <div className="max-w-4xl mx-auto">
+        <div className="eyebrow">{t('consultingPage.eyebrow')}</div>
+        <h1 className="heading-hero mb-8">{t('consultingPage.title')}</h1>
+        <p className="text-2xl text-[rgb(var(--color-ink))]/90 font-light leading-relaxed mb-12">
+          {t('consultingPage.subtitle')}
+        </p>
+        <div className="space-y-8 text-lg text-[rgb(var(--color-ink))]/80 leading-relaxed">
+          <p>{t('consultingPage.text1')}</p>
+          <p>{t('consultingPage.text2')}</p>
+          <div className="grid md:grid-cols-2 gap-8 mt-12">
+            <div className="tech-card p-8 rounded-sm">
+              <h3 className="text-xl font-bold mb-4">{t('consultingPage.card1Title')}</h3>
+              <p className="text-sm opacity-70">{t('consultingPage.card1Text')}</p>
+            </div>
+            <div className="tech-card p-8 rounded-sm">
+              <h3 className="text-xl font-bold mb-4">{t('consultingPage.card2Title')}</h3>
+              <p className="text-sm opacity-70">{t('consultingPage.card2Text')}</p>
+            </div>
+          </div>
+        </div>
+        <div className="mt-16">
+          <a href="#contact" className="btn-primary">{t('consultingPage.cta')}</a>
+        </div>
+      </div>
+    </div>
+  ) 
+}
+
+function VentureBuildingPage() {
+  const { t } = useI18n()
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+  
+  return (
+    <div className="py-32 container-edge">
+      <div className="max-w-4xl mx-auto">
+        <div className="eyebrow">{t('venturePage.eyebrow')}</div>
+        <h1 className="heading-hero mb-8">{t('venturePage.title')}</h1>
+        <p className="text-2xl text-[rgb(var(--color-ink))]/90 font-light leading-relaxed mb-12">
+          {t('venturePage.subtitle')}
+        </p>
+        <div className="space-y-8 text-lg text-[rgb(var(--color-ink))]/80 leading-relaxed">
+          <p>{t('venturePage.text1')}</p>
+          <p>{t('venturePage.text2')}</p>
+          <ul className="space-y-4 mt-8 list-disc pl-6">
+            <li>{t('venturePage.benefit1')}</li>
+            <li>{t('venturePage.benefit2')}</li>
+            <li>{t('venturePage.benefit3')}</li>
+            <li>{t('venturePage.benefit4')}</li>
+          </ul>
+        </div>
+        <div className="mt-16">
+          <a href="#contact" className="btn-primary">{t('venturePage.cta')}</a>
+        </div>
+      </div>
+    </div>
+  ) 
+}
+
+// Cookie Banner Component
+// -----------------------------------------------------------------------------
+
+function CookieBanner() {
+  const { t } = useI18n()
+  const [showBanner, setShowBanner] = useState(false)
+
+  useEffect(() => {
+    // Check if user has already accepted cookies
+    const cookiesAccepted = localStorage.getItem('cookiesAccepted')
+    if (!cookiesAccepted) {
+      // Show banner after a short delay for better UX
+      setTimeout(() => {
+        setShowBanner(true)
+      }, 1000)
+    }
+  }, [])
+
+  const acceptCookies = () => {
+    localStorage.setItem('cookiesAccepted', 'true')
+    setShowBanner(false)
+  }
+
+  if (!showBanner) return null
+
+  return createPortal(
+    <AnimatePresence>
+      <motion.div
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 100, opacity: 0 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+        className="fixed bottom-0 left-0 right-0 z-[10000] bg-[rgb(8,10,76)] border-t border-white/10 shadow-2xl backdrop-blur-md"
+      >
+        <div className="container-edge py-3 md:py-4">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex-1">
+              <p className="text-white/90 text-sm leading-relaxed">
+                {t('cookieBanner.text')}{' '}
+                <a href="#/cookies" className="text-[rgb(var(--color-accent-red))] hover:underline font-semibold">
+                  {t('cookieBanner.cookiePolicy')}
+                </a>
+                {' '}{t('cookieBanner.and')}{' '}
+                <a href="#/privacy" className="text-[rgb(var(--color-accent-red))] hover:underline font-semibold">
+                  {t('cookieBanner.privacyPolicy')}
+                </a>
+                .
+              </p>
+            </div>
+            <div className="flex flex-row gap-3 w-full md:w-auto">
+              <button
+                onClick={acceptCookies}
+                className="px-6 py-2 bg-[rgb(var(--color-accent-red))] text-white text-sm font-bold rounded-sm hover:bg-[rgb(var(--color-accent-red))]/90 transition-colors whitespace-nowrap"
+              >
+                {t('cookieBanner.accept')}
+              </button>
+              <a
+                href="#/cookies"
+                onClick={() => setShowBanner(false)}
+                className="px-6 py-2 bg-transparent border border-white/20 text-white text-sm font-semibold rounded-sm hover:bg-white/5 transition-colors text-center whitespace-nowrap"
+              >
+                {t('cookieBanner.moreInfo')}
+              </a>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </AnimatePresence>,
+    document.body
+  )
+}
+
+// Main App
+// -----------------------------------------------------------------------------
+
+function AppContent() {
   const [hash, setHash] = useState<string>(() => (typeof window !== 'undefined' ? window.location.hash : ''))
+
   useEffect(() => {
     const onHash = () => setHash(window.location.hash)
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
+  
+  // Scroll to top when navigating to different pages
+  useEffect(() => {
+    // Check if it's a page navigation (starts with #/) rather than an in-page anchor
+    if (hash.startsWith('#/') || hash === '') {
+      // Force scroll to top immediately
+      window.scrollTo(0, 0)
+      // Also force it after a small delay to ensure it works with Lenis
+      setTimeout(() => {
+        window.scrollTo(0, 0)
+      }, 0)
+      setTimeout(() => {
+        window.scrollTo(0, 0)
+      }, 10)
+    }
+  }, [hash])
+  
+  useSmoothScroll()
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage }}>
-    <main className="min-h-dvh relative">
-      {/* Ambient background: subtle blurred brand orbs */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-24 -left-24 w-[36rem] h-[36rem] rounded-full blur-3xl opacity-[0.10] bg-[rgb(var(--color-accent))] animate-orb-slow animate-pulse-soft" />
-        <div className="absolute -bottom-28 -right-20 w-[40rem] h-[40rem] rounded-full blur-[90px] opacity-[0.08] bg-[rgb(var(--color-accent-red))] animate-orb-slower animate-pulse-soft-alt" />
-        <div className="absolute top-1/3 right-1/4 w-[28rem] h-[28rem] rounded-full blur-[100px] opacity-[0.06] bg-[rgb(var(--color-brand))] animate-orb-slow animate-pulse-soft" style={{animationDelay:'-6s'}} />
-      </div>
+    <div className="bg-[rgb(var(--color-bg))] min-h-screen selection:bg-[rgb(var(--color-accent-red))]/20 selection:text-[rgb(var(--color-ink))] font-sans text-[rgb(var(--color-ink))]">
+      <ScrollProgress />
+      <DynamicBackground />
+      <CookieBanner />
       
-      <header className="brand-blur sticky top-0 z-50">
-        <div className="container-edge flex h-14 items-center justify-between">
-          <a href="#" className="flex items-center gap-2">
-            <img src="/loto%20tauler%20white.png" alt="Tauler" className="h-6 md:h-7 w-auto" />
-          </a>
-          <Navbar />
-        </div>
-      </header>
+      <motion.main
+        className="min-h-dvh relative origin-top"
+      >
       {hash === '#/privacy' ? (
         <LegalPrivacy />
       ) : hash === '#/cookies' ? (
         <LegalCookies />
       ) : hash === '#/legal' ? (
         <LegalNotice />
+      ) : hash === '#/manifesto' ? (
+        <ManifestoPage />
+      ) : hash === '#/consulting' ? (
+        <ConsultingPage />
+      ) : hash === '#/venture-building' ? (
+        <VentureBuildingPage />
+      ) : hash === '#/team' ? (
+        <TeamPage />
+      ) : hash === '#/tech' ? (
+        <TechPage />
       ) : (
         <>
+          <Navbar />
           <Hero />
-          <Thesis />
-          <Capabilities />
-          <Partnerships />
+          <Manifesto />
+          <Units />
+          <Differentiators />
+          {/* InteractiveProcess removed */}
           <CallToAction />
+          <Footer />
         </>
       )}
-      <Footer />
-    </main>
-    </LanguageContext.Provider>
+      </motion.main>
+    </div>
   )
 }
 
-// simple IntersectionObserver hook for reveal-on-scroll
-function useReveal() {
-  const ref = useRef<HTMLElement | null>(null)
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('reveal-visible')
-            observer.unobserve(entry.target)
-          }
-        })
-      },
-      { threshold: 0.15 }
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [])
-  return ref as React.RefObject<HTMLElement>
-}
-
-// Hand-drawn marker underline with draw animation
-function TrueUnderline({ children }: { children: React.ReactNode }) {
+export default function App() {
   return (
-    <span className="relative inline-block">
-      <span className="relative z-10">{children}</span>
-      <svg
-        className="absolute left-0 right-0 -bottom-2 select-none pointer-events-none true-underline"
-        width="100%"
-        height="22"
-        viewBox="0 0 100 22"
-        preserveAspectRatio="none"
-        aria-hidden="true"
-      >
-        <defs>
-          {/* More granular roughness for realistic marker texture */}
-          <filter id="hu-rough" x="-100%" y="-400%" width="300%" height="900%">
-            <feTurbulence type="fractalNoise" baseFrequency="1.2" numOctaves="2" seed="7" result="n" />
-            <feDisplacementMap in="SourceGraphic" in2="n" scale="2.5" />
-          </filter>
-          {/* Red brand */}
-          <linearGradient id="hu-red" x1="0" x2="1" y1="0" y2="0">
-            <stop offset="0%" stopColor="#ff3338" />
-            <stop offset="100%" stopColor="#e8151c" />
-          </linearGradient>
-        </defs>
-        {/* Main brush stroke (red marker) with gentle bow */}
-        <path
-          className="hu-main"
-          d="M2 14 C 22 12.4, 48 15.1, 72 13.3 S 94 13.9, 98 14"
-          fill="none"
-          stroke="url(#hu-red)"
-          strokeWidth="12"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          filter="url(#hu-rough)"
-          pathLength={100}
-        />
-        {/* End flick for hand-finished look */}
-        <path
-          className="hu-flick"
-          d="M93 14 C 96 14.6, 98.5 15, 100 15.6"
-          fill="none"
-          stroke="url(#hu-red)"
-          strokeWidth="6.5"
-          strokeLinecap="round"
-          filter="url(#hu-rough)"
-          pathLength={25}
-        />
-      </svg>
-    </span>
+    <I18nProvider>
+      <AppContent />
+    </I18nProvider>
   )
-}
-
-function Navbar() {
-  const { language, setLanguage } = useLanguage()
-  const [open, setOpen] = useState(false)
-  const [entered, setEntered] = useState(false)
-  const closeRef = useRef<HTMLButtonElement | null>(null)
-  useEffect(() => {
-    try {
-      if (open) {
-        document.body.style.overflow = 'hidden'
-      } else {
-        document.body.style.overflow = ''
-      }
-    } catch {}
-    return () => { try { document.body.style.overflow = '' } catch {} }
-  }, [open])
-
-  // Slide-in animation and accessibility (focus + ESC)
-  useEffect(() => {
-    if (!open) return
-    const id = requestAnimationFrame(() => setEntered(true))
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
-    window.addEventListener('keydown', onKey)
-    // Focus the close button when opened
-    setTimeout(() => closeRef.current?.focus(), 50)
-    return () => { cancelAnimationFrame(id); window.removeEventListener('keydown', onKey); setEntered(false) }
-  }, [open])
-
-  const t = language === 'en'
-    ? {
-        thesis: 'Thesis',
-        capabilities: 'Capabilities',
-        partnerships: 'Partnerships',
-        cta: 'Partner with us',
-        toggleLabel: 'Switch language to Spanish',
-      }
-    : {
-        thesis: 'Tesis',
-        capabilities: 'Capacidades',
-        partnerships: 'Colaboraciones',
-        cta: 'Colabora con nosotros',
-        toggleLabel: 'Cambiar idioma a inglés',
-      }
-
-  const toggle = () => setLanguage(language === 'en' ? 'es' : 'en')
-
-  return (
-    <>
-      {/* Desktop nav */}
-      <nav className="hidden md:flex items-center gap-4 md:gap-6 text-sm text-white/80">
-        <a className="hover:text-white" href="#thesis">{t.thesis}</a>
-        <a className="hover:text-white" href="#capabilities">{t.capabilities}</a>
-        <a className="hover:text-white" href="#partnerships">{t.partnerships}</a>
-        <a className="btn-ghost" href="#contact">{t.cta}</a>
-        <button
-          type="button"
-          aria-label={t.toggleLabel}
-          onClick={toggle}
-          className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs border border-white/15 text-white/80 hover:bg-white/5 transition"
-        >
-          <span className="font-medium">{language.toUpperCase()}</span>
-          <span className="opacity-60">/</span>
-          <span className="opacity-80">{language === 'en' ? 'ES' : 'EN'}</span>
-        </button>
-      </nav>
-
-      {/* Mobile: menu button */}
-      <button
-        type="button"
-        className="md:hidden inline-flex items-center justify-center w-9 h-9 rounded-lg border border-white/15 text-white/90 hover:bg-white/5"
-        aria-label={language === 'en' ? 'Open menu' : 'Abrir menú'}
-        onClick={() => setOpen(true)}
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="3" y1="6" x2="21" y2="6" />
-          <line x1="3" y1="12" x2="21" y2="12" />
-          <line x1="3" y1="18" x2="21" y2="18" />
-        </svg>
-      </button>
-
-      {/* Mobile drawer */}
-      {open && createPortal(
-        <div className="fixed inset-0 z-[100] md:hidden" aria-hidden={!open}>
-          {/* Full-screen panel (portal to body to avoid stacking issues) */}
-          <aside
-            role="dialog"
-            aria-modal="true"
-            aria-label={language === 'en' ? 'Navigation' : 'Navegación'}
-            className={`absolute inset-0 h-full w-full bg-[rgba(8,10,76,1)] shadow-[0_10px_50px_rgba(0,0,0,0.6)] transform transition-transform duration-300 will-change-transform ${entered ? 'translate-x-0' : 'translate-x-full'}`}
-          >
-            <div className="relative border-b border-white/10">
-              <button ref={closeRef} className="absolute right-3 top-3 edge-button px-3 py-1" onClick={() => setOpen(false)} aria-label={language === 'en' ? 'Close menu' : 'Cerrar menú'}>✕</button>
-              <div className="py-5 flex items-center justify-center">
-                <img src="/loto%20tauler%20white.png" alt="Tauler" className="h-7 w-auto" />
-              </div>
-            </div>
-            <nav className="px-6 pt-4 text-white">
-              <ul className="divide-y divide-white/10">
-                <li>
-                  <a className="block py-4 text-center text-lg hover:text-white/90" href="#thesis" onClick={() => setOpen(false)}>{t.thesis}</a>
-                </li>
-                <li>
-                  <a className="block py-4 text-center text-lg hover:text-white/90" href="#capabilities" onClick={() => setOpen(false)}>{t.capabilities}</a>
-                </li>
-                <li>
-                  <a className="block py-4 text-center text-lg hover:text-white/90" href="#partnerships" onClick={() => setOpen(false)}>{t.partnerships}</a>
-                </li>
-                <li>
-                  <a className="block py-4 text-center text-lg hover:text-white/90" href="#contact" onClick={() => setOpen(false)}>{t.cta}</a>
-                </li>
-              </ul>
-              <div className="mt-6 flex items-center justify-center">
-                <button
-                  type="button"
-                  aria-label={t.toggleLabel}
-                  onClick={() => { toggle(); setOpen(false) }}
-                  className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs border border-white/15 text-white/80 hover:bg-white/5 transition"
-                >
-                  <span className="font-medium">{language.toUpperCase()}</span>
-                  <span className="opacity-60">/</span>
-                  <span className="opacity-80">{language === 'en' ? 'ES' : 'EN'}</span>
-                </button>
-              </div>
-            </nav>
-          </aside>
-        </div>, document.body)
-      }
-    </>
-  )
-}
-
-function Footer() {
-  const { language } = useLanguage()
-  const t = language === 'en'
-    ? {
-        quick: 'Quick links',
-        legal: 'Legal',
-        thesis: 'Thesis',
-        capabilities: 'Capabilities',
-        partnerships: 'Partnerships',
-        contact: 'Contact',
-        privacy: 'Privacy Policy',
-        cookies: 'Cookies Policy',
-        legalNotice: 'Legal Notice',
-        emailLabel: 'Email',
-      }
-    : {
-        quick: 'Enlaces rápidos',
-        legal: 'Legal',
-        thesis: 'Tesis',
-        capabilities: 'Capacidades',
-        partnerships: 'Colaboraciones',
-        contact: 'Contacto',
-        privacy: 'Política de privacidad',
-        cookies: 'Política de cookies',
-        legalNotice: 'Aviso legal',
-        emailLabel: 'Correo',
-      }
-
-  return (
-    <footer className="relative border-t border-white/10 mt-20">
-      <div className="container-edge py-12 md:py-16">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-16">
-          <div className="space-y-4">
-            <a href="#" className="inline-flex items-center gap-3">
-              <img src="/loto%20tauler%20white.png" alt="Tauler" className="h-7 w-auto" />
-            </a>
-            <div className="text-white/70 text-sm">
-              <span className="uppercase tracking-widest text-white/50 text-xs mr-2">{t.emailLabel}</span>
-              <a href="mailto:info@taulergroup.com" className="hover:text-white">info@taulergroup.com</a>
-            </div>
-          </div>
-
-          <div>
-            <div className="uppercase tracking-widest text-xs text-white/50 mb-3">{t.quick}</div>
-            <ul className="space-y-2 text-white/80 text-sm">
-              <li><a className="hover:text-white" href="#thesis">{t.thesis}</a></li>
-              <li><a className="hover:text-white" href="#capabilities">{t.capabilities}</a></li>
-              <li><a className="hover:text-white" href="#partnerships">{t.partnerships}</a></li>
-              <li><a className="hover:text-white" href="#contact">{t.contact}</a></li>
-            </ul>
-          </div>
-
-          <div>
-            <div className="uppercase tracking-widest text-xs text-white/50 mb-3">{t.legal}</div>
-            <ul className="space-y-2 text-white/80 text-sm">
-              <li><a className="hover:text-white" href="#/privacy">{t.privacy}</a></li>
-              <li><a className="hover:text-white" href="#/cookies">{t.cookies}</a></li>
-              <li><a className="hover:text-white" href="#/legal">{t.legalNotice}</a></li>
-            </ul>
-          </div>
-        </div>
-
-        <div className="mt-10 text-white/40 text-xs">© {new Date().getFullYear()} Tauler Group</div>
-      </div>
-    </footer>
-  )
-}
-
-function LegalShell({ titleEn, titleEs, children }: { titleEn: string; titleEs: string; children: React.ReactNode }) {
-  const { language } = useLanguage()
-  return (
-    <section className="relative py-14 md:py-20">
-      <div className="container-edge max-w-4xl">
-        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-6 md:p-10">
-          <h1 className="text-2xl md:text-4xl font-semibold mb-4">{language === 'en' ? titleEn : titleEs}</h1>
-          <div className="legal-content">
-            {children}
-          </div>
-          <div className="mt-8">
-            <a href="#" className="edge-button">← {language === 'en' ? 'Back' : 'Volver'}</a>
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function LegalPrivacy() {
-  return (
-    <LegalShell titleEn="Privacy Policy and Data Protection" titleEs="Política de Privacidad y Protección de Datos">
-      <p className="legal-note"><strong>{'Última actualización / Last updated'}:</strong> 15/9/2025</p>
-      {/* Spanish */}
-      <RenderByLang es>
-        <h3>1. Responsable del Tratamiento</h3>
-        <p>
-          TAULER GROUP VENTURES S.L.<br/>
-          Dirección: Plaza Curtidos Hnos. Dorta, 7 - 38005, Santa Cruz de Tfe.<br/>
-          Email: info@taulergroup.com<br/>
-          CIF: B21742259
-        </p>
-        <h3>2. Finalidad del Tratamiento</h3>
-        <p>Sus datos serán tratados con las siguientes finalidades:</p>
-        <ul>
-          <li>Gestionar la relación comercial y prestación de servicios</li>
-          <li>Envío de comunicaciones comerciales sobre nuestros servicios</li>
-          <li>Responder a sus consultas y solicitudes</li>
-          <li>Mejorar nuestros servicios y la experiencia del usuario</li>
-        </ul>
-        <h3>3. Legitimación</h3>
-        <p>El tratamiento de sus datos está basado en:</p>
-        <ul>
-          <li>La ejecución de un contrato o relación comercial</li>
-          <li>El consentimiento del usuario</li>
-          <li>El interés legítimo del responsable</li>
-        </ul>
-        <h3>4. Conservación de los Datos</h3>
-        <p>Los datos personales se conservarán mientras se mantenga la relación comercial y no se solicite su supresión, y en su caso, durante los años necesarios para cumplir con las obligaciones legales.</p>
-        <h3>5. Destinatarios</h3>
-        <p>Sus datos no serán cedidos a terceros salvo obligación legal o cuando sea necesario para la prestación de los servicios solicitados.</p>
-        <h3>6. Derechos</h3>
-        <p>Puede ejercer sus derechos de acceso, rectificación, supresión, limitación, portabilidad y oposición escribiendo a info@taulergroup.com.</p>
-        <h3>7. Autoridad de Control</h3>
-        <p>Puede presentar una reclamación ante la Agencia Española de Protección de Datos (www.aepd.es) si considera que el tratamiento no se ajusta a la normativa vigente.</p>
-      </RenderByLang>
-      {/* English */}
-      <RenderByLang en>
-        <h3>1. Data Controller</h3>
-        <p>
-          TAULER GROUP VENTURES S.L.<br/>
-          Address: Plaza Curtidos Hnos. Dorta, 7 - 38005, Santa Cruz de Tfe.<br/>
-          Email: info@taulergroup.com<br/>
-          VAT ID: B21742259
-        </p>
-        <h3>2. Purpose of Processing</h3>
-        <p>Your data will be processed for the following purposes:</p>
-        <ul>
-          <li>Manage the commercial relationship and service delivery</li>
-          <li>Send marketing communications about our services</li>
-          <li>Respond to your enquiries and requests</li>
-          <li>Improve our services and user experience</li>
-        </ul>
-        <h3>3. Legal Basis</h3>
-        <p>Processing is based on:</p>
-        <ul>
-          <li>Performance of a contract or commercial relationship</li>
-          <li>User consent</li>
-          <li>Legitimate interest of the controller</li>
-        </ul>
-        <h3>4. Data Retention</h3>
-        <p>Personal data will be kept while the commercial relationship remains and no erasure is requested, and, where applicable, for the years required to comply with legal obligations.</p>
-        <h3>5. Recipients</h3>
-        <p>Your data will not be shared with third parties except where required by law or when necessary for the provision of the requested services.</p>
-        <h3>6. Rights</h3>
-        <p>You may exercise your rights of access, rectification, erasure, restriction, portability and objection by writing to info@taulergroup.com.</p>
-        <h3>7. Supervisory Authority</h3>
-        <p>You may lodge a complaint with the Spanish Data Protection Agency (www.aepd.es) if you consider that the processing does not comply with current regulations.</p>
-      </RenderByLang>
-    </LegalShell>
-  )
-}
-
-function LegalCookies() {
-  return (
-    <LegalShell titleEn="Cookies Policy" titleEs="Política de Cookies">
-      <p className="legal-note"><strong>{'Última actualización / Last updated'}:</strong> 15/9/2025</p>
-      <RenderByLang es>
-        <h3>¿Qué son las cookies?</h3>
-        <p>Las cookies son pequeños archivos de texto que se almacenan en su dispositivo cuando visita nuestra web.</p>
-        <h3>Tipos de cookies que utilizamos</h3>
-        <h4>Cookies técnicas (necesarias)</h4>
-        <ul>
-          <li>Permiten la navegación y el uso de funcionalidades básicas</li>
-          <li>Son imprescindibles para el funcionamiento de la web</li>
-        </ul>
-        <h4>Cookies analíticas</h4>
-        <ul>
-          <li>Nos permiten analizar el uso de la web para mejorar nuestros servicios</li>
-          <li>Utilizamos Google Analytics [y otras herramientas]</li>
-        </ul>
-        <h4>Cookies de preferencias</h4>
-        <ul>
-          <li>Permiten recordar información para mejorar su experiencia</li>
-        </ul>
-        <h3>¿Cómo gestionar las cookies?</h3>
-        <p>Puede configurar su navegador para rechazar todas las cookies o para recibir un aviso cuando se envíe una cookie. Sin embargo, si rechaza las cookies, es posible que algunas partes de nuestro sitio web no funcionen correctamente.</p>
-        <h3>Más información</h3>
-        <p>Para más información sobre el uso de cookies y sus derechos, puede contactar con nosotros en info@taulergroup.com.</p>
-      </RenderByLang>
-      <RenderByLang en>
-        <h3>What are cookies?</h3>
-        <p>Cookies are small text files that are stored on your device when you visit our website.</p>
-        <h3>Types of cookies we use</h3>
-        <h4>Technical (necessary) cookies</h4>
-        <ul>
-          <li>Enable navigation and the use of basic functionality</li>
-          <li>They are essential for the operation of the website</li>
-        </ul>
-        <h4>Analytics cookies</h4>
-        <ul>
-          <li>Allow us to analyze website usage to improve our services</li>
-          <li>We use Google Analytics [and other tools]</li>
-        </ul>
-        <h4>Preference cookies</h4>
-        <ul>
-          <li>Allow remembering information to enhance your experience</li>
-        </ul>
-        <h3>How to manage cookies?</h3>
-        <p>You can configure your browser to refuse all cookies or to alert you when a cookie is being sent. However, if you refuse cookies, some parts of our website may not function properly.</p>
-        <h3>More information</h3>
-        <p>For more information about the use of cookies and your rights, you can contact us at info@taulergroup.com.</p>
-      </RenderByLang>
-    </LegalShell>
-  )
-}
-
-function LegalNotice() {
-  return (
-    <LegalShell titleEn="Legal Notice" titleEs="Aviso legal">
-      <RenderByLang es>
-        <p>Esta página web es propiedad de TAULER GROUP VENTURES S.L., con CIF B21742259 y domicilio en Plaza Curtidos Hnos. Dorta, 7 - 38005, Santa Cruz de Tfe.</p>
-        <p>Para cualquier consulta o propuesta, contáctenos en el e-mail: info@taulergroup.com.</p>
-        <p>La página web se rige por la normativa exclusivamente aplicable en España y en el espacio que comprende la Unión Europea, quedando sometidos a ella tanto nacionales como extranjeros que utilicen esta web.</p>
-        <p>El acceso a nuestra página web por parte del USUARIO es gratuito y está condicionado a la previa lectura y aceptación íntegra, expresa y sin reservas del presente Aviso Legal vigente en el momento del acceso, que rogamos lea detenidamente. El USUARIO, en el momento que utiliza nuestro portal y sus contenidos o servicios, acepta y se somete expresamente a las Condiciones Generales de uso de este. Si el USUARIO no estuviere de acuerdo con las presentes Condiciones de uso, deberá abstenerse de utilizar este portal y operar por medio de este.</p>
-        <p>En cualquier momento podremos modificar la presentación y configuración de nuestra Web, ampliar o reducir servicios, e incluso suprimirla de la Red, así como los servicios y contenidos prestados, todo ello de forma unilateral y sin previo aviso.</p>
-        <h3>Propiedad intelectual</h3>
-        <p>El sitio web, incluyendo a título enunciativo, pero no limitativo su programación, edición, compilación y demás elementos necesarios para su funcionamiento, los diseños, logotipos, texto y/o gráficos son propiedad del prestador o en su caso dispone de licencia o autorización expresa por parte de los autores. Todos los contenidos del sitio web se encuentran debidamente protegidos por la normativa de propiedad intelectual e industrial.</p>
-        <p>Independientemente de la finalidad para la que fueran destinados, la reproducción total o parcial, uso, explotación, distribución y comercialización, requiere en todo caso de la autorización escrita previa por parte del prestador. Cualquier uso no autorizado previamente por parte del prestador será considerado un incumplimiento grave de los derechos de propiedad intelectual o industrial del autor.</p>
-        <p>Los diseños, logotipos, texto y/o gráficos ajenos al prestador y que pudieran aparecer en el sitio web, pertenecen a sus respectivos propietarios, siendo ellos mismos responsables de cualquier posible controversia que pudiera suscitarse respecto a los mismos. En todo caso, el prestador cuenta con la autorización expresa y previa por parte de estos.</p>
-        <p>El prestador no permite, salvo autorización expresa, a terceros para que puedan redirigir directamente a los contenidos concretos del sitio web. En todo caso, y si mediare permiso, deberá redirigirla al sitio web principal del prestador.</p>
-        <p>El prestador reconoce a favor de sus titulares los correspondientes derechos de propiedad industrial e intelectual, no implicando su sola mención o aparición en el sitio web la existencia de derechos o responsabilidad alguna del prestador sobre los mismos, como tampoco respaldo, patrocinio o recomendación por parte de este.</p>
-        <p>Para realizar cualquier tipo de observación respecto a posibles incumplimientos de los derechos de propiedad intelectual o industrial, así como sobre cualquiera de los contenidos del sitio web, puede hacerlo a través del siguiente correo electrónico: info@taulergroup.com.</p>
-        <h3>Condiciones Generales de uso</h3>
-        <p>El acceso a nuestra página web es gratuito y no exige previa suscripción o registro. El USUARIO debe acceder a la misma conforme a la buena fe, las normas de orden público y a las presentes Condiciones Generales de uso. El acceso a nuestro sitio web se realiza bajo la propia y exclusiva responsabilidad del USUARIO, que se abstendrá de utilizar cualquiera de los servicios con fines o efectos ilícitos, prohibidos o lesivos para los derechos de terceras personas, respondiendo en todo caso de los daños y perjuicios que pueda causar a terceros o a nosotros mismos.</p>
-        <p>Teniendo en cuenta la imposibilidad de control respecto a la información, contenidos y servicios que contengan otras páginas web a los que se pueda acceder a través de los enlaces que nuestra página web pueda poner a su disposición, le comunicamos que quedamos eximidos de cualquier responsabilidad por los daños y perjuicios de toda clase que pudiesen derivar por la utilización de esas páginas web, ajenas a nuestra empresa, por parte del USUARIO.</p>
-        <p>Puede obtener más información sobre el uso que hacemos de sus datos de carácter personal en la Política de Privacidad de nuestra web.</p>
-      </RenderByLang>
-      <RenderByLang en>
-        <p>This website is owned by TAULER GROUP VENTURES S.L., VAT ID B21742259, with registered address at Plaza Curtidos Hnos. Dorta, 7 - 38005, Santa Cruz de Tfe.</p>
-        <p>For any enquiry or proposal, please contact us at: info@taulergroup.com.</p>
-        <p>This website is governed by the regulations applicable in Spain and within the European Union. Both nationals and foreign users who use this website are subject to said regulations.</p>
-        <p>Access to our website by the USER is free and conditioned upon prior complete, express and unreserved reading and acceptance of this Legal Notice in force at the time of access, which we ask you to read carefully. By using our portal and its contents or services, the USER expressly accepts and agrees to the General Conditions of Use. If the USER does not agree with these Conditions of Use, they must refrain from using this site and operating through it.</p>
-        <p>We may modify the presentation and configuration of our Website at any time, expand or reduce services, or even remove it from the network, as well as the services and content provided, unilaterally and without prior notice.</p>
-        <h3>Intellectual Property</h3>
-        <p>The website, including but not limited to its programming, editing, compilation and other elements necessary for its operation, designs, logos, text and/or graphics are owned by the provider or, where appropriate, licensed or expressly authorised by the authors. All the content of the website is duly protected by intellectual and industrial property regulations.</p>
-        <p>Regardless of the purpose for which they were intended, total or partial reproduction, use, exploitation, distribution and marketing requires, in all cases, the prior written authorisation of the provider. Any unauthorised use by the provider will be considered a serious breach of the author's intellectual or industrial property rights.</p>
-        <p>Designs, logos, text and/or graphics not belonging to the provider that may appear on the site belong to their respective owners, who are responsible for any possible dispute regarding them. In any case, the provider has the express prior authorisation of these owners.</p>
-        <p>The provider does not allow, unless expressly authorised, third parties to link directly to specific content of the website. If permission is granted, links must point to the provider’s main website.</p>
-        <p>The provider recognises in favour of their owners the corresponding industrial and intellectual property rights. The mere mention or appearance of such contents on the website does not imply the existence of rights or any responsibility of the provider over them, nor endorsement, sponsorship or recommendation by the provider.</p>
-        <p>To make any observation regarding possible breaches of intellectual or industrial property rights, as well as any of the contents of the website, you can do so via the following email: info@taulergroup.com.</p>
-        <h3>General Conditions of Use</h3>
-        <p>Access to our website is free and does not require prior subscription or registration. The USER must access it in accordance with good faith, public order rules and these General Conditions of Use. Access to our site is under the USER's sole responsibility. The USER shall refrain from using any services for purposes or effects that are unlawful, prohibited or harmful to the rights of third parties, and will be liable for any damages that may be caused to third parties or to us.</p>
-        <p>Given the impossibility of controlling the information, content and services contained on other web pages that can be accessed through the links that our website may provide, we inform you that we are exempt from any liability for damages of any kind that may arise from the use of those web pages, which are external to our company, by the USER.</p>
-        <p>You can obtain more information about our use of your personal data in the Privacy Policy on our website.</p>
-      </RenderByLang>
-    </LegalShell>
-  )
-}
-
-// Helper to render by selected language
-function RenderByLang({ en, es, children }: { en?: boolean; es?: boolean; children: React.ReactNode }) {
-  const { language } = useLanguage()
-  const show = (language === 'en' && en) || (language === 'es' && es)
-  return show ? <>{children}</> : null
 }
