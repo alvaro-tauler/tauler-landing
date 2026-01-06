@@ -392,7 +392,7 @@ function Manifesto() {
 }
 
 // Palantir-style process flow visualization for Consulting
-function ConsultingFlowViz() {
+function _ConsultingFlowViz() {
   const stages = ['DIAG', 'ARQ', 'DEV', 'OPS', 'ESC']
   return (
     <div className="relative h-28 mb-8 overflow-hidden rounded-sm border border-[rgb(var(--color-ink))]/10 bg-[rgb(var(--color-ink))]/[0.02]">
@@ -441,7 +441,7 @@ function ConsultingFlowViz() {
 }
 
 // Palantir-style network visualization for Venture Building
-function VentureNetworkViz() {
+function _VentureNetworkViz() {
   return (
     <div className="relative h-28 mb-8 overflow-hidden rounded-sm border border-[rgb(var(--color-ink))]/10 bg-[rgb(var(--color-ink))]/[0.02]">
       {/* Background grid */}
@@ -1520,7 +1520,7 @@ function LegalNotice() {
 // Team Hero Visualization
 // -----------------------------------------------------------------------------
 
-function TeamHeroViz() {
+function _TeamHeroViz() {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
       {/* Neural Network Background */}
