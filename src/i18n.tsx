@@ -119,6 +119,11 @@ export const translations: Record<Language, Translations> = {
       messageLabel: 'Mensaje',
       messagePlaceholder: '¿Cómo podemos colaborar?',
       submit: 'Enviar Mensaje',
+      sending: 'Enviando...',
+      successTitle: '¡Mensaje enviado!',
+      successMessage: 'Gracias por contactarnos. Te responderemos lo antes posible.',
+      sendAnother: 'Enviar otro mensaje',
+      errorMessage: 'Hubo un error al enviar el mensaje. Por favor, inténtalo de nuevo.',
     },
     // Footer
     footer: {
@@ -446,6 +451,11 @@ export const translations: Record<Language, Translations> = {
       messageLabel: 'Message',
       messagePlaceholder: 'How can we collaborate?',
       submit: 'Send Message',
+      sending: 'Sending...',
+      successTitle: 'Message sent!',
+      successMessage: 'Thank you for contacting us. We will respond as soon as possible.',
+      sendAnother: 'Send another message',
+      errorMessage: 'There was an error sending the message. Please try again.',
     },
     // Footer
     footer: {

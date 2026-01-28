@@ -890,6 +890,85 @@ function Differentiators() {
 
 function CallToAction() {
   const { t } = useI18n()
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    company: '',
+    message: ''
+  })
+  const [formStatus, setFormStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setFormStatus('loading')
+
+    const hubspotPortalId = '146295013'
+    const hubspotFormId = 'e3c23dc7-21b0-48b2-99b1-e574824b6d49'
+
+    const hubspotData = {
+      fields: [
+        {
+          objectTypeId: '0-1',
+          name: 'firstname',
+          value: formData.name.split(' ')[0] || formData.name
+        },
+        {
+          objectTypeId: '0-1',
+          name: 'lastname',
+          value: formData.name.split(' ').slice(1).join(' ') || ''
+        },
+        {
+          objectTypeId: '0-1',
+          name: 'email',
+          value: formData.email
+        },
+        {
+          objectTypeId: '0-1',
+          name: 'company',
+          value: formData.company
+        },
+        {
+          objectTypeId: '0-1',
+          name: 'en_que_podemos_ayudarte',
+          value: formData.message
+        }
+      ],
+      context: {
+        pageUri: window.location.href,
+        pageName: document.title
+      }
+    }
+
+    try {
+      const response = await fetch(
+        `https://api.hsforms.com/submissions/v3/integration/submit/${hubspotPortalId}/${hubspotFormId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(hubspotData)
+        }
+      )
+
+      if (response.ok) {
+        setFormStatus('success')
+        setFormData({ name: '', email: '', company: '', message: '' })
+      } else {
+        throw new Error('Form submission failed')
+      }
+    } catch {
+      setFormStatus('error')
+    }
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormData(prev => ({
+      ...prev,
+      [e.target.name]: e.target.value
+    }))
+  }
+
   return (
     <motion.section 
       className="relative py-32 md:py-48 overflow-hidden border-t border-[rgb(var(--color-ink))]/5"
@@ -930,50 +1009,101 @@ function CallToAction() {
           >
             <h3 className="text-2xl font-bold text-[rgb(var(--color-ink))] mb-8">{t('contact.formTitle')}</h3>
             
-            <form className="space-y-6" action="https://formspree.io/f/mandzjzo" method="POST">
-              <div>
-                <label className="block text-xs uppercase tracking-widest text-[rgb(var(--color-ink))]/50 mb-2">{t('contact.nameLabel')}</label>
-                <input 
-                  type="text" 
-                  name="name" 
-                  required 
-                  className="w-full bg-transparent border-b border-[rgb(var(--color-ink))]/20 py-3 text-[rgb(var(--color-ink))] focus:outline-none focus:border-[rgb(var(--color-accent-red))] transition-colors" 
-                  placeholder={t('contact.namePlaceholder')} 
-                />
-              </div>
-              <div>
-                <label className="block text-xs uppercase tracking-widest text-[rgb(var(--color-ink))]/50 mb-2">{t('contact.emailFieldLabel')}</label>
-                <input 
-                  type="email" 
-                  name="email" 
-                  required 
-                  className="w-full bg-transparent border-b border-[rgb(var(--color-ink))]/20 py-3 text-[rgb(var(--color-ink))] focus:outline-none focus:border-[rgb(var(--color-accent-red))] transition-colors" 
-                  placeholder={t('contact.emailPlaceholder')} 
-                />
-              </div>
-              <div>
-                <label className="block text-xs uppercase tracking-widest text-[rgb(var(--color-ink))]/50 mb-2">{t('contact.companyLabel')}</label>
-                <input 
-                  type="text" 
-                  name="company" 
-                  className="w-full bg-transparent border-b border-[rgb(var(--color-ink))]/20 py-3 text-[rgb(var(--color-ink))] focus:outline-none focus:border-[rgb(var(--color-accent-red))] transition-colors" 
-                  placeholder={t('contact.companyPlaceholder')} 
-                />
-              </div>
-              <div>
-                <label className="block text-xs uppercase tracking-widest text-[rgb(var(--color-ink))]/50 mb-2">{t('contact.messageLabel')}</label>
-                <textarea 
-                  name="message" 
-                  rows={4} 
-                  required
-                  className="w-full bg-transparent border-b border-[rgb(var(--color-ink))]/20 py-3 text-[rgb(var(--color-ink))] focus:outline-none focus:border-[rgb(var(--color-accent-red))] transition-colors resize-none" 
-                  placeholder={t('contact.messagePlaceholder')}
-                ></textarea>
-              </div>
-              <button type="submit" className="w-full btn-primary py-4 mt-4">
-                {t('contact.submit')}
-              </button>
-            </form>
+            {formStatus === 'success' ? (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center py-12"
+              >
+                <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-green-500/10 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h4 className="text-xl font-bold text-[rgb(var(--color-ink))] mb-2">{t('contact.successTitle')}</h4>
+                <p className="text-[rgb(var(--color-ink))]/70">{t('contact.successMessage')}</p>
+                <button 
+                  onClick={() => setFormStatus('idle')}
+                  className="mt-6 text-[rgb(var(--color-accent-red))] font-semibold hover:underline"
+                >
+                  {t('contact.sendAnother')}
+                </button>
+              </motion.div>
+            ) : (
+              <form className="space-y-6" onSubmit={handleSubmit}>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-[rgb(var(--color-ink))]/50 mb-2">{t('contact.nameLabel')}</label>
+                  <input 
+                    type="text" 
+                    name="name" 
+                    value={formData.name}
+                    onChange={handleChange}
+                    required 
+                    className="w-full bg-transparent border-b border-[rgb(var(--color-ink))]/20 py-3 text-[rgb(var(--color-ink))] focus:outline-none focus:border-[rgb(var(--color-accent-red))] transition-colors" 
+                    placeholder={t('contact.namePlaceholder')} 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-[rgb(var(--color-ink))]/50 mb-2">{t('contact.emailFieldLabel')}</label>
+                  <input 
+                    type="email" 
+                    name="email" 
+                    value={formData.email}
+                    onChange={handleChange}
+                    required 
+                    className="w-full bg-transparent border-b border-[rgb(var(--color-ink))]/20 py-3 text-[rgb(var(--color-ink))] focus:outline-none focus:border-[rgb(var(--color-accent-red))] transition-colors" 
+                    placeholder={t('contact.emailPlaceholder')} 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-[rgb(var(--color-ink))]/50 mb-2">{t('contact.companyLabel')}</label>
+                  <input 
+                    type="text" 
+                    name="company" 
+                    value={formData.company}
+                    onChange={handleChange}
+                    className="w-full bg-transparent border-b border-[rgb(var(--color-ink))]/20 py-3 text-[rgb(var(--color-ink))] focus:outline-none focus:border-[rgb(var(--color-accent-red))] transition-colors" 
+                    placeholder={t('contact.companyPlaceholder')} 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-[rgb(var(--color-ink))]/50 mb-2">{t('contact.messageLabel')}</label>
+                  <textarea 
+                    name="message" 
+                    rows={4} 
+                    value={formData.message}
+                    onChange={handleChange}
+                    required
+                    className="w-full bg-transparent border-b border-[rgb(var(--color-ink))]/20 py-3 text-[rgb(var(--color-ink))] focus:outline-none focus:border-[rgb(var(--color-accent-red))] transition-colors resize-none" 
+                    placeholder={t('contact.messagePlaceholder')}
+                  ></textarea>
+                </div>
+                
+                {formStatus === 'error' && (
+                  <div className="text-red-500 text-sm">
+                    {t('contact.errorMessage')}
+                  </div>
+                )}
+                
+                <button 
+                  type="submit" 
+                  disabled={formStatus === 'loading'}
+                  className="w-full btn-primary py-4 mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {formStatus === 'loading' ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      {t('contact.sending')}
+                    </span>
+                  ) : (
+                    t('contact.submit')
+                  )}
+                </button>
+              </form>
+            )}
           </motion.div>
         </div>
       </div>
