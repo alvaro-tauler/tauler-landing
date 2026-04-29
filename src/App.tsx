@@ -67,38 +67,34 @@ const TEAM: TeamMember[] = [
 ]
 
 // -----------------------------------------------------------------------------
-// Theme tracking — navbar text inverts over the dark "What We Do" section
-// -----------------------------------------------------------------------------
-
-function useDarkSection(targetId: string) {
-  const [dark, setDark] = useState(false)
-  useEffect(() => {
-    const el = document.getElementById(targetId)
-    if (!el) return
-    const obs = new IntersectionObserver(
-      ([entry]) => setDark(entry.isIntersecting),
-      { rootMargin: '-60px 0px -85% 0px' },
-    )
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [targetId])
-  return dark
-}
-
-// -----------------------------------------------------------------------------
 // Brand glare — soft pulsing color layers in Tauler blue + red
 // -----------------------------------------------------------------------------
 
-type GlarePos = {
-  blue: { left?: string; right?: string; top?: string; bottom?: string }
-  red: { left?: string; right?: string; top?: string; bottom?: string }
+type GlareSpot = {
+  color: 'white' | 'red'
+  pos: { left?: string; right?: string; top?: string; bottom?: string }
+  delay?: string
 }
 
-function Glare({ positions }: { positions: GlarePos }) {
+const PAGE_GLARES: GlareSpot[] = [
+  { color: 'white', pos: { left: '15%', top: '8%' }, delay: '0s' },
+  { color: 'red', pos: { right: '8%', top: '22%' }, delay: '-2s' },
+  { color: 'white', pos: { right: '-5%', top: '48%' }, delay: '-4s' },
+  { color: 'red', pos: { left: '5%', top: '62%' }, delay: '-6s' },
+  { color: 'white', pos: { left: '35%', bottom: '8%' }, delay: '-1.5s' },
+  { color: 'red', pos: { right: '15%', bottom: '20%' }, delay: '-3.5s' },
+]
+
+function PageGlares() {
   return (
-    <div className="glare-layer" aria-hidden>
-      <div className="glare glare-blue" style={positions.blue} />
-      <div className="glare glare-red" style={positions.red} />
+    <div className="page-glare-layer" aria-hidden>
+      {PAGE_GLARES.map((g, i) => (
+        <div
+          key={i}
+          className={`glare glare-${g.color}`}
+          style={{ ...g.pos, animationDelay: g.delay }}
+        />
+      ))}
     </div>
   )
 }
@@ -108,24 +104,19 @@ function Glare({ positions }: { positions: GlarePos }) {
 // -----------------------------------------------------------------------------
 
 function Navbar() {
-  const dark = useDarkSection('what-we-do')
-  const tone = dark ? 'text-white' : 'text-[#0A0A0A]'
-
   return (
     <nav
-      className={`fixed top-0 inset-x-0 z-50 px-4 sm:px-6 md:px-10 py-4 sm:py-5 flex items-center justify-between gap-3 backdrop-blur-md transition-colors duration-500 ${
-        dark ? 'bg-[#0A0A0A]/40' : 'bg-white/55'
-      }`}
+      className="fixed top-0 inset-x-0 z-50 px-4 sm:px-6 md:px-10 py-4 sm:py-5 flex items-center justify-between gap-3 backdrop-blur-md bg-[#080A4C]/40"
     >
       <a href="#top" className="flex items-center shrink-0" aria-label="Tauler Group">
         <img
-          src={dark ? '/loto%20tauler%20white.png' : '/logo%20tauler.png'}
+          src="/loto%20tauler%20white.png"
           alt="Tauler Group"
-          className="h-6 sm:h-7 md:h-8 w-auto transition-opacity duration-500"
+          className="h-6 sm:h-7 md:h-8 w-auto"
         />
       </a>
       <ul
-        className={`flex items-center gap-4 sm:gap-6 md:gap-10 text-[12px] sm:text-[13px] md:text-[14px] font-normal tracking-[-0.005em] transition-colors duration-500 ${tone}`}
+        className="flex items-center gap-4 sm:gap-6 md:gap-10 text-[12px] sm:text-[13px] md:text-[14px] font-normal tracking-[-0.005em] text-white"
       >
         <li>
           <a
@@ -189,11 +180,15 @@ function SubsidiaryLogo({ subsidiary }: { subsidiary: Subsidiary }) {
           <img
             src={subsidiary.src}
             alt={subsidiary.name}
-            className="w-[150px] md:w-[180px] h-auto grayscale opacity-80 hover:opacity-100 transition-opacity duration-500"
+            className={`w-[150px] md:w-[180px] h-auto opacity-85 hover:opacity-100 transition-opacity duration-500 ${
+              subsidiary.name === 'Columbus'
+                ? '[filter:brightness(0)_invert(1)]'
+                : 'grayscale invert'
+            }`}
           />
         ) : (
           <span
-            className="block w-[150px] md:w-[180px] text-center font-sans text-[#0A0A0A] text-[24px] md:text-[28px] font-medium leading-none tracking-[-0.04em] opacity-90 hover:opacity-100 transition-opacity duration-500"
+            className="block w-[150px] md:w-[180px] text-center font-sans text-white text-[24px] md:text-[28px] font-medium leading-none tracking-[-0.04em] opacity-90 hover:opacity-100 transition-opacity duration-500"
           >
             {subsidiary.name}
           </span>
@@ -208,14 +203,14 @@ function SubsidiaryLogo({ subsidiary }: { subsidiary: Subsidiary }) {
             : 'opacity-0 -translate-y-1 pointer-events-none max-h-0 md:max-h-none'
         }`}
       >
-        <p className="font-sans text-[#0A0A0A] text-[14px] leading-[1.55] mb-5 tracking-[-0.005em]">
+        <p className="font-sans text-white/85 text-[14px] leading-[1.55] mb-5 tracking-[-0.005em]">
           {subsidiary.description}
         </p>
         <a
           href={subsidiary.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="pointer-events-auto inline-block font-sans text-[13px] text-[#0A0A0A] border-b border-[#0A0A0A]/60 pb-0.5 hover:opacity-50 transition-opacity duration-300"
+          className="pointer-events-auto inline-block font-sans text-[13px] text-white border-b border-white/60 pb-0.5 hover:opacity-50 transition-opacity duration-300"
         >
           Visit ↗
         </a>
@@ -228,20 +223,13 @@ function Hero() {
   return (
     <section
       id="top"
-      className="relative min-h-screen w-full bg-white flex flex-col items-center justify-center px-6 overflow-hidden"
+      className="relative min-h-screen w-full flex flex-col items-center justify-center px-6"
     >
-      <Glare
-        positions={{
-          blue: { left: '20%', top: '40%' },
-          red: { right: '10%', bottom: '15%' },
-        }}
-      />
-
       <div className="relative z-10 reveal reveal-d2">
         <img
-          src="/logo%20tauler.png"
+          src="/loto%20tauler%20white.png"
           alt="Tauler Group"
-          className="w-[300px] sm:w-[380px] md:w-[460px] lg:w-[540px] h-auto"
+          className="w-[360px] sm:w-[460px] md:w-[560px] lg:w-[680px] h-auto"
         />
       </div>
 
@@ -263,7 +251,7 @@ function WhatWeDo() {
   return (
     <section
       id="what-we-do"
-      className="relative bg-[#0A0A0A] text-white px-6 py-32 md:py-40 lg:py-[160px] overflow-hidden"
+      className="relative text-white px-6 py-32 md:py-40 lg:py-[160px]"
     >
       <div className="max-w-[1100px] mx-auto">
         <p className="display-tight text-white text-center text-[2rem] md:text-[2.75rem] lg:text-[3.25rem] leading-[1.15]">
@@ -296,16 +284,10 @@ function LinkedInIcon() {
 
 function Team() {
   return (
-    <section id="team" className="relative bg-white px-6 py-28 md:py-36 overflow-hidden">
-      <Glare
-        positions={{
-          blue: { left: '-10%', top: '20%' },
-          red: { right: '-5%', bottom: '10%' },
-        }}
-      />
+    <section id="team" className="relative px-6 py-28 md:py-36">
       <div className="relative z-10 max-w-5xl mx-auto">
         <div className="text-center mb-16 md:mb-24">
-          <h2 className="display-tight text-[#0A0A0A] text-6xl md:text-7xl lg:text-8xl leading-[0.9]">
+          <h2 className="display-tight text-white text-6xl md:text-7xl lg:text-8xl leading-[0.9]">
             Leadership
           </h2>
         </div>
@@ -316,17 +298,17 @@ function Team() {
               key={m.name}
               className="flex flex-col items-center text-center"
             >
-              <div className="relative w-52 h-52 md:w-60 md:h-60 rounded-full overflow-hidden bg-[#F5F5F5] border border-[#0A0A0A]/[0.07]">
+              <div className="relative w-52 h-52 md:w-60 md:h-60 rounded-full overflow-hidden bg-white/5 border border-white/15">
                 <img
                   src={m.photo}
                   alt={m.name}
                   className="w-full h-full object-cover grayscale"
                 />
               </div>
-              <h3 className="mt-8 font-sans font-medium text-2xl md:text-[28px] text-[#0A0A0A] leading-none tracking-[-0.03em]">
+              <h3 className="mt-8 font-sans font-medium text-2xl md:text-[28px] text-white leading-none tracking-[-0.03em]">
                 {m.name}
               </h3>
-              <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.3em] text-[#666666]">
+              <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.3em] text-white/60">
                 {m.role}
               </p>
               <a
@@ -334,7 +316,7 @@ function Team() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={`${m.name} on LinkedIn`}
-                className="mt-5 text-[#666666] hover:text-[#0A0A0A] transition-colors duration-300"
+                className="mt-5 text-white/60 hover:text-white transition-colors duration-300"
               >
                 <LinkedInIcon />
               </a>
@@ -371,7 +353,7 @@ function Field({
     <div>
       <label
         htmlFor={id}
-        className="block font-mono text-[10px] uppercase tracking-[0.3em] text-[#666666] mb-3"
+        className="block font-mono text-[10px] uppercase tracking-[0.3em] text-white/60 mb-3"
       >
         {label}
       </label>
@@ -383,7 +365,7 @@ function Field({
           rows={3}
           value={value}
           onChange={onChange}
-          className="w-full bg-transparent border-0 border-b border-[#0A0A0A]/20 focus:border-[#0A0A0A] outline-none py-2 text-[#0A0A0A] resize-none transition-colors duration-300 font-sans text-base placeholder:text-[#666666]/40"
+          className="w-full bg-transparent border-0 border-b border-white/25 focus:border-white outline-none py-2 text-white resize-none transition-colors duration-300 font-sans text-base placeholder:text-white/40"
         />
       ) : (
         <input
@@ -393,7 +375,7 @@ function Field({
           required={required}
           value={value}
           onChange={onChange}
-          className="w-full bg-transparent border-0 border-b border-[#0A0A0A]/20 focus:border-[#0A0A0A] outline-none py-2 text-[#0A0A0A] transition-colors duration-300 font-sans text-base placeholder:text-[#666666]/40"
+          className="w-full bg-transparent border-0 border-b border-white/25 focus:border-white outline-none py-2 text-white transition-colors duration-300 font-sans text-base placeholder:text-white/40"
         />
       )}
     </div>
@@ -462,17 +444,11 @@ function Contact() {
   return (
     <section
       id="contact"
-      className="relative bg-[#F5F5F5] px-6 py-28 md:py-36 overflow-hidden"
+      className="relative px-6 py-28 md:py-36"
     >
-      <Glare
-        positions={{
-          blue: { right: '-15%', top: '10%' },
-          red: { left: '15%', bottom: '5%' },
-        }}
-      />
       <div className="relative z-10 max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-12 lg:gap-24 items-start">
         <div>
-          <h2 className="display-tight text-[#0A0A0A] text-6xl md:text-7xl lg:text-8xl leading-[0.9]">
+          <h2 className="display-tight text-white text-6xl md:text-7xl lg:text-8xl leading-[0.9]">
             Let's
             <br />
             talk.
@@ -508,17 +484,17 @@ function Contact() {
             <button
               type="submit"
               disabled={status === 'loading'}
-              className="font-mono text-[11px] uppercase tracking-[0.32em] text-[#0A0A0A] border border-[#0A0A0A] px-9 py-4 hover:bg-[#0A0A0A] hover:text-white transition-colors duration-300 disabled:opacity-40"
+              className="font-mono text-[11px] uppercase tracking-[0.32em] text-white border border-white px-9 py-4 hover:bg-white hover:text-[#080A4C] transition-colors duration-300 disabled:opacity-40"
             >
               {status === 'loading' ? 'Sending…' : 'Send →'}
             </button>
             {status === 'success' && (
-              <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-[#666666]">
+              <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-white/60">
                 Message sent
               </span>
             )}
             {status === 'error' && (
-              <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-[#666666]">
+              <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-white/60">
                 Try again
               </span>
             )}
@@ -896,27 +872,27 @@ function Footer({
   onOpenLegal: (d: LegalDoc) => void
 }) {
   return (
-    <footer className="bg-white px-5 sm:px-6 md:px-10 py-6 border-t border-[#0A0A0A]/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#666666]">
+    <footer className="relative z-10 px-5 sm:px-6 md:px-10 py-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-white/60">
       <span>© 2025 Tauler Group</span>
       <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
         <button
           type="button"
           onClick={() => onOpenLegal('aviso')}
-          className="hover:text-[#0A0A0A] transition-colors"
+          className="hover:text-white transition-colors"
         >
           Legal Notice
         </button>
         <button
           type="button"
           onClick={() => onOpenLegal('privacidad')}
-          className="hover:text-[#0A0A0A] transition-colors"
+          className="hover:text-white transition-colors"
         >
           Privacy
         </button>
         <button
           type="button"
           onClick={() => onOpenLegal('cookies')}
-          className="hover:text-[#0A0A0A] transition-colors"
+          className="hover:text-white transition-colors"
         >
           Cookies
         </button>
@@ -932,7 +908,8 @@ function Footer({
 export default function App() {
   const [legalDoc, setLegalDoc] = useState<LegalDoc | null>(null)
   return (
-    <main className="bg-white text-[#0A0A0A] font-sans">
+    <main className="relative bg-[#080A4C] text-white font-sans overflow-hidden">
+      <PageGlares />
       <Navbar />
       <Hero />
       <WhatWeDo />
