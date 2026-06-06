@@ -4,17 +4,19 @@ import {
   useState,
   type FormEvent,
   type ChangeEvent,
-  type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { useI18n, LanguageSwitch } from './i18n'
 
 // -----------------------------------------------------------------------------
 // Types & Data
 // -----------------------------------------------------------------------------
 
+type SubsidiaryKey = 'canary' | 'columbus'
+
 type Subsidiary = {
+  key: SubsidiaryKey
   name: string
-  description: string
   url: string
   logo: 'image' | 'wordmark'
   src?: string
@@ -23,7 +25,6 @@ type Subsidiary = {
 
 type TeamMember = {
   name: string
-  role: string
   photo: string
   linkedin: string
 }
@@ -32,18 +33,16 @@ type FormStatus = 'idle' | 'loading' | 'success' | 'error'
 
 const SUBSIDIARIES: Subsidiary[] = [
   {
+    key: 'canary',
     name: 'Canary AI',
-    description:
-      'Applied AI firm for Private Equity-backed companies. We deploy AI workspaces, process automations, and software into portfolio companies to improve operations, margins and EV.',
     url: 'https://canaryai.pro',
     logo: 'image',
     src: '/logo%20canary%20(2).svg',
     glow: 'rgba(250, 191, 38, 0.95)',
   },
   {
+    key: 'columbus',
     name: 'Columbus',
-    description:
-      'The AI-powered operating system for emerging private capital firms. Everything a GP needs to run their firm, raise capital, and close deals — in one place.',
     url: 'https://withcolumbus.com',
     logo: 'image',
     src: '/logo%20Columbus%20gris.png',
@@ -54,13 +53,11 @@ const SUBSIDIARIES: Subsidiary[] = [
 const TEAM: TeamMember[] = [
   {
     name: 'Álvaro Toledo',
-    role: 'Co-Founder & Managing Partner',
     photo: '/alvaro.png',
     linkedin: 'https://linkedin.com/in/toledotauler/',
   },
   {
     name: 'Manuel Toledo',
-    role: 'Co-Founder & Managing Partner',
     photo: '/manuel.png',
     linkedin: 'https://linkedin.com/in/manueltoledotauler/',
   },
@@ -104,46 +101,113 @@ function PageGlares() {
 // -----------------------------------------------------------------------------
 
 function Navbar() {
+  const { d } = useI18n()
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prev
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  const links = [
+    { href: '#what-we-do', label: d.nav.whatWeDo },
+    { href: '#pe-practice', label: d.nav.peP },
+    { href: '#team', label: d.nav.leadership },
+    { href: '#contact', label: d.nav.contact },
+  ]
+
   return (
-    <nav
-      className="fixed top-0 inset-x-0 z-50 px-4 sm:px-6 md:px-10 py-4 sm:py-5 flex items-center justify-between gap-3 backdrop-blur-md bg-[#080A4C]/40"
-    >
-      <a href="#top" className="flex items-center shrink-0" aria-label="Tauler Group">
-        <img
-          src="/loto%20tauler%20white.png"
-          alt="Tauler Group"
-          className="h-6 sm:h-7 md:h-8 w-auto"
-        />
-      </a>
-      <ul
-        className="flex items-center gap-4 sm:gap-6 md:gap-10 text-[12px] sm:text-[13px] md:text-[14px] font-normal tracking-[-0.005em] text-white"
+    <>
+      <nav className="fixed top-0 inset-x-0 z-50 px-4 sm:px-6 md:px-10 py-4 sm:py-5 flex items-center justify-between gap-3 backdrop-blur-md bg-[#080A4C]/40">
+        <a
+          href="#top"
+          className="flex items-center shrink-0"
+          aria-label="Tauler Group"
+        >
+          <img
+            src="/loto%20tauler%20white.png"
+            alt="Tauler Group"
+            className="h-6 sm:h-7 md:h-8 w-auto"
+          />
+        </a>
+
+        <ul className="hidden md:flex items-center gap-6 md:gap-10 text-[13px] md:text-[14px] font-normal tracking-[-0.005em] text-white">
+          {links.map((l) => (
+            <li key={l.href}>
+              <a
+                href={l.href}
+                className="hover:opacity-50 transition-opacity duration-300"
+              >
+                {l.label}
+              </a>
+            </li>
+          ))}
+          <li>
+            <LanguageSwitch />
+          </li>
+        </ul>
+
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="md:hidden flex flex-col gap-[5px] p-2 -mr-2"
+          aria-label={d.nav.menu}
+        >
+          <span className="block w-6 h-px bg-white" />
+          <span className="block w-6 h-px bg-white" />
+        </button>
+      </nav>
+
+      <div
+        className={`fixed inset-0 z-[80] md:hidden bg-[#080A4C] transition-opacity duration-300 ${
+          open
+            ? 'opacity-100 pointer-events-auto'
+            : 'opacity-0 pointer-events-none'
+        }`}
+        aria-hidden={!open}
       >
-        <li>
-          <a
-            href="#what-we-do"
-            className="hover:opacity-50 transition-opacity duration-300"
+        <div className="flex items-center justify-between px-4 py-4">
+          <img
+            src="/loto%20tauler%20white.png"
+            alt="Tauler Group"
+            className="h-6 w-auto"
+          />
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="text-white text-2xl leading-none p-2 -mr-2"
+            aria-label={d.nav.close}
           >
-            What we do
-          </a>
-        </li>
-        <li>
-          <a
-            href="#team"
-            className="hover:opacity-50 transition-opacity duration-300"
-          >
-            Leadership
-          </a>
-        </li>
-        <li>
-          <a
-            href="#contact"
-            className="hover:opacity-50 transition-opacity duration-300"
-          >
-            Contact
-          </a>
-        </li>
-      </ul>
-    </nav>
+            ×
+          </button>
+        </div>
+        <ul className="flex flex-col items-center justify-center gap-10 mt-20 text-white">
+          {links.map((l) => (
+            <li key={l.href}>
+              <a
+                href={l.href}
+                onClick={() => setOpen(false)}
+                className="font-sans text-3xl tracking-[-0.02em]"
+              >
+                {l.label}
+              </a>
+            </li>
+          ))}
+          <li className="mt-6">
+            <LanguageSwitch />
+          </li>
+        </ul>
+      </div>
+    </>
   )
 }
 
@@ -152,7 +216,9 @@ function Navbar() {
 // -----------------------------------------------------------------------------
 
 function SubsidiaryLogo({ subsidiary }: { subsidiary: Subsidiary }) {
+  const { d } = useI18n()
   const [open, setOpen] = useState(false)
+  const description = d.subsidiaries[subsidiary.key]
 
   return (
     <div
@@ -204,7 +270,7 @@ function SubsidiaryLogo({ subsidiary }: { subsidiary: Subsidiary }) {
         }`}
       >
         <p className="font-sans text-white/85 text-[14px] leading-[1.55] mb-5 tracking-[-0.005em]">
-          {subsidiary.description}
+          {description}
         </p>
         <a
           href={subsidiary.url}
@@ -212,7 +278,7 @@ function SubsidiaryLogo({ subsidiary }: { subsidiary: Subsidiary }) {
           rel="noopener noreferrer"
           className="pointer-events-auto inline-block font-sans text-[13px] text-white border-b border-white/60 pb-0.5 hover:opacity-50 transition-opacity duration-300"
         >
-          Visit ↗
+          {d.hero.visit}
         </a>
       </div>
     </div>
@@ -248,6 +314,7 @@ function Hero() {
 // -----------------------------------------------------------------------------
 
 function WhatWeDo() {
+  const { d } = useI18n()
   return (
     <section
       id="what-we-do"
@@ -255,11 +322,38 @@ function WhatWeDo() {
     >
       <div className="max-w-[1100px] mx-auto">
         <p className="display-tight text-white text-center text-[2rem] md:text-[2.75rem] lg:text-[3.25rem] leading-[1.15]">
-          We build and operate AI-first companies, focusing on real impact in
-          real industries.
+          {d.whatWeDo}
         </p>
       </div>
 
+    </section>
+  )
+}
+
+// -----------------------------------------------------------------------------
+// PE Practice
+// -----------------------------------------------------------------------------
+
+function PEPractice() {
+  const { d } = useI18n()
+  return (
+    <section
+      id="pe-practice"
+      className="relative text-white px-6 py-28 md:py-36"
+    >
+      <div className="relative z-10 max-w-[1100px] mx-auto text-center">
+        <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/60 mb-8">
+          {d.peP.eyebrow}
+        </p>
+        <h2 className="display-tight text-white text-5xl md:text-6xl lg:text-7xl leading-[0.95] mb-10 md:mb-12">
+          {d.peP.headlineLine1}
+          <br />
+          {d.peP.headlineLine2}
+        </h2>
+        <p className="font-sans text-white/80 text-[16px] md:text-[18px] leading-[1.6] tracking-[-0.005em] max-w-[760px] mx-auto">
+          {d.peP.body}
+        </p>
+      </div>
     </section>
   )
 }
@@ -283,12 +377,13 @@ function LinkedInIcon() {
 }
 
 function Team() {
+  const { d } = useI18n()
   return (
     <section id="team" className="relative px-6 py-28 md:py-36">
       <div className="relative z-10 max-w-5xl mx-auto">
         <div className="text-center mb-16 md:mb-24">
           <h2 className="display-tight text-white text-6xl md:text-7xl lg:text-8xl leading-[0.9]">
-            Leadership
+            {d.leadership.title}
           </h2>
         </div>
 
@@ -309,7 +404,7 @@ function Team() {
                 {m.name}
               </h3>
               <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.3em] text-white/60">
-                {m.role}
+                {d.leadership.role}
               </p>
               <a
                 href={m.linkedin}
@@ -383,6 +478,7 @@ function Field({
 }
 
 function Contact() {
+  const { d } = useI18n()
   const [data, setData] = useState({ name: '', email: '', message: '' })
   const [status, setStatus] = useState<FormStatus>('idle')
 
@@ -449,23 +545,21 @@ function Contact() {
       <div className="relative z-10 max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-12 lg:gap-24 items-start">
         <div>
           <h2 className="display-tight text-white text-6xl md:text-7xl lg:text-8xl leading-[0.9]">
-            Let's
-            <br />
-            talk.
+            {d.contact.title}
           </h2>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-10 pt-2">
           <Field
             id="name"
-            label="Name"
+            label={d.contact.name}
             required
             value={data.name}
             onChange={handleChange}
           />
           <Field
             id="email"
-            label="Email"
+            label={d.contact.email}
             type="email"
             required
             value={data.email}
@@ -473,7 +567,7 @@ function Contact() {
           />
           <Field
             id="message"
-            label="Message"
+            label={d.contact.message}
             required
             multiline
             value={data.message}
@@ -486,16 +580,16 @@ function Contact() {
               disabled={status === 'loading'}
               className="font-mono text-[11px] uppercase tracking-[0.32em] text-white border border-white px-9 py-4 hover:bg-white hover:text-[#080A4C] transition-colors duration-300 disabled:opacity-40"
             >
-              {status === 'loading' ? 'Sending…' : 'Send →'}
+              {status === 'loading' ? d.contact.sending : d.contact.send}
             </button>
             {status === 'success' && (
               <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-white/60">
-                Message sent
+                {d.contact.sent}
               </span>
             )}
             {status === 'error' && (
               <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-white/60">
-                Try again
+                {d.contact.retry}
               </span>
             )}
           </div>
@@ -511,237 +605,6 @@ function Contact() {
 
 type LegalDoc = 'aviso' | 'privacidad' | 'cookies'
 
-const LEGAL: Record<LegalDoc, { title: string; body: ReactNode }> = {
-  privacidad: {
-    title: 'Privacy and Data Protection Policy',
-    body: (
-      <>
-        <p className="legal-meta">Last updated: 15/09/2025</p>
-
-        <h3>1. Data Controller</h3>
-        <p>TAULER GROUP VENTURES S.L.</p>
-        <p>Address: Plaza Curtidos Hnos. Dorta, 7 - 38005, Santa Cruz de Tfe.</p>
-        <p>Email: info@taulergroup.com</p>
-        <p>Tax ID (CIF): B21742259</p>
-
-        <h3>2. Purpose of Processing</h3>
-        <p>Your data will be processed for the following purposes:</p>
-        <ul>
-          <li>Managing the commercial relationship and provision of services</li>
-          <li>Sending commercial communications about our services</li>
-          <li>Responding to your enquiries and requests</li>
-          <li>Improving our services and the user experience</li>
-        </ul>
-
-        <h3>3. Legal Basis</h3>
-        <p>The processing of your data is based on:</p>
-        <ul>
-          <li>The performance of a contract or commercial relationship</li>
-          <li>The user's consent</li>
-          <li>The legitimate interest of the controller</li>
-        </ul>
-
-        <h3>4. Data Retention</h3>
-        <p>
-          Personal data will be retained for as long as the commercial
-          relationship continues and erasure is not requested, and where
-          applicable, for the years necessary to comply with legal
-          obligations.
-        </p>
-
-        <h3>5. Recipients</h3>
-        <p>
-          Your data will not be shared with third parties except where
-          required by law or where necessary for the provision of the
-          requested services.
-        </p>
-
-        <h3>6. Rights</h3>
-        <p>
-          You may exercise your rights of access, rectification, erasure,
-          restriction, portability and objection by writing to
-          info@taulergroup.com
-        </p>
-
-        <h3>7. Supervisory Authority</h3>
-        <p>
-          You may file a complaint with the Spanish Data Protection Agency
-          (www.aepd.es) if you consider that the processing does not comply
-          with applicable law.
-        </p>
-      </>
-    ),
-  },
-  cookies: {
-    title: 'Cookie Policy',
-    body: (
-      <>
-        <p className="legal-meta">Last updated: 15/09/2025</p>
-
-        <h3>What are cookies?</h3>
-        <p>
-          Cookies are small text files stored on your device when you visit
-          our website. They allow us to recognise your browser and, if you
-          have a registered account, link it to that account to provide a
-          personalised experience.
-        </p>
-
-        <h3>Types of cookies we use</h3>
-
-        <h4>Technical cookies (necessary)</h4>
-        <ul>
-          <li>Enable browsing and the use of basic functionalities</li>
-          <li>Are essential for the website to operate</li>
-        </ul>
-
-        <h4>Analytical cookies</h4>
-        <ul>
-          <li>Allow us to analyse the use of the website to improve our services</li>
-          <li>We use Google Analytics and other tools</li>
-        </ul>
-
-        <h4>Preference cookies</h4>
-        <ul>
-          <li>Allow us to remember information to improve your experience</li>
-          <li>Such as your preferred language or your region</li>
-        </ul>
-
-        <h3>How to manage cookies</h3>
-        <p>
-          You can configure your browser to reject all cookies or to receive
-          a notice when a cookie is sent. However, if you reject cookies,
-          some parts of our website may not function correctly.
-        </p>
-        <p>
-          Most browsers accept cookies automatically, but you can change
-          your browser settings to reject them if you prefer.
-        </p>
-
-        <h3>Further information</h3>
-        <p>
-          For more information about our use of cookies and your rights,
-          please contact us at info@taulergroup.com
-        </p>
-      </>
-    ),
-  },
-  aviso: {
-    title: 'Legal Notice',
-    body: (
-      <>
-        <h3>Company Information</h3>
-        <p>This website is owned by TAULER GROUP VENTURES S.L.</p>
-        <p>Tax ID (CIF): B21742259</p>
-        <p>
-          Registered address: Plaza Curtidos Hnos. Dorta, 7 - 38005, Santa
-          Cruz de Tfe.
-        </p>
-        <p>
-          For any enquiries or proposals, contact us at:
-          info@taulergroup.com
-        </p>
-
-        <h3>Applicable Law</h3>
-        <p>
-          The website is governed exclusively by the laws applicable in
-          Spain and within the European Union, and is binding on both
-          nationals and foreign visitors who use this website.
-        </p>
-
-        <h3>Terms of Use</h3>
-        <p>
-          Access to our website by the USER is free of charge and is
-          conditional on the prior reading and full, express and
-          unreserved acceptance of this Legal Notice in force at the time
-          of access, which we kindly ask you to read carefully.
-        </p>
-        <p>
-          By using our portal and its contents or services, the USER
-          expressly accepts and submits to its General Terms of Use. If
-          the USER does not agree with these Terms of Use, they must
-          refrain from using this portal and operating through it.
-        </p>
-        <p>
-          We may at any time modify the presentation and configuration of
-          our website, expand or reduce services, and even withdraw it
-          from the network, as well as the services and content provided,
-          all unilaterally and without prior notice.
-        </p>
-
-        <h3>Intellectual Property</h3>
-        <p>
-          The website, including by way of example but not limited to its
-          programming, editing, compilation and other elements necessary
-          for its operation, the designs, logos, text and/or graphics are
-          the property of the provider or, where applicable, the provider
-          holds a licence or express authorisation from the authors. All
-          content on the website is duly protected by intellectual and
-          industrial property regulations.
-        </p>
-        <p>
-          Regardless of the purpose for which they were intended, total or
-          partial reproduction, use, exploitation, distribution and
-          commercialisation in all cases require prior written
-          authorisation from the provider. Any use not previously
-          authorised by the provider shall be considered a serious
-          infringement of the author's intellectual or industrial property
-          rights.
-        </p>
-        <p>
-          Any designs, logos, text and/or graphics not belonging to the
-          provider that may appear on the website belong to their
-          respective owners, who are themselves responsible for any
-          dispute that may arise in relation to them. In any case, the
-          provider has the express prior authorisation of these owners.
-        </p>
-        <p>
-          The provider does not permit third parties to redirect directly
-          to specific content of the website without express
-          authorisation. In any case, where permission is granted, the
-          link must redirect to the provider's main website.
-        </p>
-        <p>
-          The provider acknowledges the corresponding industrial and
-          intellectual property rights in favour of their respective
-          holders, and the mere mention or appearance of such rights on
-          the website does not imply the existence of any rights or
-          liability on the part of the provider, nor any endorsement,
-          sponsorship or recommendation by the provider.
-        </p>
-        <p>
-          For any observation regarding possible infringements of
-          intellectual or industrial property rights, or regarding any of
-          the content of the website, you can do so via the following
-          email address: info@taulergroup.com
-        </p>
-
-        <h3>General Conditions of Use</h3>
-        <p>
-          Access to our website is free and does not require prior
-          subscription or registration. The USER must access it in good
-          faith, in accordance with public order rules and these General
-          Conditions of Use. Access to our website is undertaken at the
-          USER's sole and exclusive responsibility, who shall refrain from
-          using any of the services for unlawful, prohibited purposes or
-          purposes detrimental to third-party rights, being liable in any
-          case for any damages they may cause to third parties or to us.
-        </p>
-        <p>
-          Given the impossibility of controlling the information, content
-          and services contained in other websites accessible through
-          links that our website may make available, we inform you that
-          we are released from any liability for damages of any kind that
-          may arise from the USER's use of those websites belonging to
-          others.
-        </p>
-        <p>
-          You can find more information about how we use your personal
-          data in the Privacy Policy on our website.
-        </p>
-      </>
-    ),
-  },
-}
 
 function LegalModal({
   doc,
@@ -750,6 +613,8 @@ function LegalModal({
   doc: LegalDoc | null
   onClose: () => void
 }) {
+  const { d } = useI18n()
+
   useEffect(() => {
     if (!doc) return
     const onKey = (e: KeyboardEvent) => {
@@ -764,7 +629,7 @@ function LegalModal({
   }, [doc, onClose])
 
   if (!doc) return null
-  const { title, body } = LEGAL[doc]
+  const { title, body } = d.legal[doc]
 
   return createPortal(
     <div
@@ -806,6 +671,7 @@ function CookieBanner({
 }: {
   onOpenLegal: (d: LegalDoc) => void
 }) {
+  const { d } = useI18n()
   const [shown, setShown] = useState(false)
 
   useEffect(() => {
@@ -830,15 +696,13 @@ function CookieBanner({
   return (
     <div className="fixed left-3 right-3 bottom-3 sm:left-auto sm:right-6 sm:bottom-6 sm:max-w-sm z-[90] bg-white border border-black/10 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.25)] p-5">
       <p className="text-[13px] leading-[1.55] text-[#0A0A0A] mb-4">
-        We use technical cookies necessary for the site to function. We do
-        not use analytical or advertising cookies without your consent.
-        Read more in our{' '}
+        {d.cookies.text}{' '}
         <button
           type="button"
           onClick={() => onOpenLegal('cookies')}
           className="underline hover:opacity-60 transition-opacity"
         >
-          Cookie Policy
+          {d.cookies.cookiePolicyLink}
         </button>
         .
       </p>
@@ -848,14 +712,14 @@ function CookieBanner({
           onClick={() => decide('rejected')}
           className="flex-1 text-[11px] uppercase tracking-[0.2em] border border-[#0A0A0A] px-3 py-2.5 hover:bg-[#0A0A0A] hover:text-white transition-colors"
         >
-          Reject
+          {d.cookies.reject}
         </button>
         <button
           type="button"
           onClick={() => decide('accepted')}
           className="flex-1 text-[11px] uppercase tracking-[0.2em] bg-[#0A0A0A] text-white px-3 py-2.5 hover:opacity-80 transition-opacity"
         >
-          Accept
+          {d.cookies.accept}
         </button>
       </div>
     </div>
@@ -869,32 +733,33 @@ function CookieBanner({
 function Footer({
   onOpenLegal,
 }: {
-  onOpenLegal: (d: LegalDoc) => void
+  onOpenLegal: (doc: LegalDoc) => void
 }) {
+  const { d } = useI18n()
   return (
     <footer className="relative z-10 px-5 sm:px-6 md:px-10 py-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-white/60">
-      <span>© 2025 Tauler Group</span>
+      <span>{d.footer.copyright}</span>
       <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
         <button
           type="button"
           onClick={() => onOpenLegal('aviso')}
           className="hover:text-white transition-colors"
         >
-          Legal Notice
+          {d.footer.legalNotice}
         </button>
         <button
           type="button"
           onClick={() => onOpenLegal('privacidad')}
           className="hover:text-white transition-colors"
         >
-          Privacy
+          {d.footer.privacy}
         </button>
         <button
           type="button"
           onClick={() => onOpenLegal('cookies')}
           className="hover:text-white transition-colors"
         >
-          Cookies
+          {d.footer.cookies}
         </button>
       </div>
     </footer>
@@ -913,6 +778,7 @@ export default function App() {
       <Navbar />
       <Hero />
       <WhatWeDo />
+      <PEPractice />
       <Team />
       <Contact />
       <Footer onOpenLegal={setLegalDoc} />
